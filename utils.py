@@ -74,7 +74,7 @@ def write_results(pkl_path, model_name, emb_name, optim_name,
     best_params['num_params'] = num_params
     best_params['test_accuracies'] = test_accuracies
     best_params['test_loss'] = test_loss
-    best_params['times'] = times
+    best_params['times'] = train_times
     best_params['test_times'] = test_times # т.к. на этапе тестирования нет обучения, то это по сути время инференса
 
     if os.path.exists(pkl_path):
