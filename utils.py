@@ -67,7 +67,7 @@ import pickle
 
 def write_results(pkl_path, model_name, emb_name, optim_name,
                   layers, num_epochs, num_params, best_params, 
-                  test_accuracies, test_loss, times):
+                  test_accuracies, test_loss, train_times, test_times):
     best_params['pkl_path'] = pkl_path
     best_params['layers'] = layers
     best_params['num_epochs'] = num_epochs
@@ -75,6 +75,7 @@ def write_results(pkl_path, model_name, emb_name, optim_name,
     best_params['test_accuracies'] = test_accuracies
     best_params['test_loss'] = test_loss
     best_params['times'] = times
+    best_params['test_times'] = test_times # т.к. на этапе тестирования нет обучения, то это по сути время инференса
 
     if os.path.exists(pkl_path):
         with open(pkl_path, 'rb') as f:
