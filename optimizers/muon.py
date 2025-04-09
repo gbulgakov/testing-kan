@@ -497,7 +497,7 @@ class Muon(torch.optim.Optimizer):
         params.extend(adamw_params)
         super().__init__(params, defaults)
         muon_params_set = set(muon_params)
-        
+        sum = 0
         # intialiase use_muon for every parameter
         for group in self.param_groups:
             for p in group['params']:
@@ -505,7 +505,10 @@ class Muon(torch.optim.Optimizer):
                 if p in muon_params_set:
                     # Use Muon for every parameter in muon_params which is >= 2D 
                     # and doesn't look like an embedding or head layer
-                    self.state[p]["use_muon"] = (p.ndim >= 2 and p.size(0) < 10000)      
+                    self.state[p]["use_muon"] = (p.ndim >= 2 and p.size(0) < 10000)
+                    sum += self.state[p]['use_muon']
+
+        assert sum > 0, 'ничего не поменяли'
 
         '''There were an error with parameters IDs due to Pytorch implementation'''
         # Sort parameters into those for which we will use Muon, and those for which we will not
