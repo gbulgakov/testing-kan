@@ -497,9 +497,6 @@ class Muon(torch.optim.Optimizer):
         params.extend(adamw_params)
         super().__init__(params, defaults)
         
-        for p in params:
-            self.state[p]['use_muon'] = False
-
         # Sort parameters into those for which we will use Muon, and those for which we will not
         for p in muon_params:
             # Use Muon for every parameter in muon_params which is >= 2D and doesn't look like an embedding or head layer
