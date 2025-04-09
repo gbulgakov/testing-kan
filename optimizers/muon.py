@@ -467,7 +467,7 @@ class Muon(torch.optim.Optimizer):
         adamw_wd: The weight decay for the internal AdamW.
     """
 
-        def __init__(
+    def __init__(
         self,
         muon_params,
         lr=0.02,
