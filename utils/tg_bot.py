@@ -20,7 +20,7 @@ def send_telegram_message(text):
 def send_telegram_file(file_path):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
     with open(file_path, 'rb') as f:
-        files = {"document": f}
         for CHAT_ID in [GEORGY_ID, DANIL_ID]:
-            params = {"chat_id": CHAT_ID, "text": text}
-            requests.post(url, params=params)
+            files = {"document": f}
+            data = {"chat_id": CHAT_ID}
+            requests.post(url, files=files, data=data)
