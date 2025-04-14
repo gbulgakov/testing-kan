@@ -3,6 +3,7 @@ import torch
 from typing import Optional
 from torch import Tensor
 import rtdl_num_embeddings
+from efficient_kan import KAN
 
 # обычная MLP
 class MLP(nn.Sequential):
