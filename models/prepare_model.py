@@ -101,6 +101,7 @@ def model_init_preparation(config, dataset, model_name, emb_name):
             MLP(mlp_layer_widths, dropout),
             KAN(kan_layer_widths, grid_size=config['grid_size'], batch_norm=True)
         )
+        layer_widths = mlp_layer_widths + kan_layer_widths
     
     elif model_name == 'kan_mlp':
         kan_layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [config['kan_width']]
@@ -110,6 +111,7 @@ def model_init_preparation(config, dataset, model_name, emb_name):
             KAN(kan_layer_widths, grid_size=config['grid_size'], batch_norm=True),
             MLP(mlp_layer_widths, dropout)
         )
+        layer_widths = kan_layer_widths + mlp_layer_widths
     
     # создание эмбеддингов
     if emb_name == 'piecewiselinearq' or emb_name == 'PLE-Q':
