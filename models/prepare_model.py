@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from typing import Optional
 from torch import Tensor
+import torch.nn.functional as F
 import rtdl_num_embeddings
 from models.efficient_kan import KAN
 
