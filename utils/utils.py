@@ -115,8 +115,10 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
     if model_name == 'mlp':
         params.update({
             'mlp_layers' : {'values' : [1, 2, 3, 4]}, # скрытые слои
-            'mlp_width' : {'values' : [2 ** i for i in range(10)]},
-            'use_dropout' : {'values' : [True, False]},
+            'mlp_width' : {'values' : [2 ** i for i in range(11)]},
+             'use_dropout' : {'values' : [True, False],
+                             'probabilities' : [0.7, 0.3] # dropout вероятно нужен
+                            },
             'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
         })
     elif model_name == 'kan':
@@ -127,12 +129,14 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         })
     elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
         params.update({
-            'kan_layers' : {'values' : [1, 2, 3, 4]},
-            'kan_width' : {'values' : [2 ** i for i in range(7)]},
+            'kan_layers' : {'values' : [1, 2, 3]}, 
+            'kan_width' : {'values' : [2 ** i for i in range(6)]},
             'grid_size' : {'values' : [i for i in range(3, 30, 2)]},
-            'mlp_layers' : {'values' : [1, 2, 3, 4]},
-            'mlp_width' : {'values' : [2 ** i for i in range(11)]},
-            'use_dropout' : {'values' : [True, False]},
+            'mlp_layers' : {'values' : [1, 2, 3]},
+            'mlp_width' : {'values' : [2 ** i for i in range(10)]},
+            'use_dropout' : {'values' : [True, False],
+                             'probabilities' : [0.7, 0.3] # dropout вероятно нужен
+                            },
             'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
         })
 
@@ -143,7 +147,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
     if emb_name == 'periodic':
         params.update({
             'sigma' : {
-                'distribution' : 'uniform',
+                'distribution' : 'log_uniform_values',
                 'min' : 0.01,
                 'max' : 100
             }
@@ -175,3 +179,4 @@ def get_test_config(task_type, sweep_name):
         'name' : sweep_name
     }
     return config
+
