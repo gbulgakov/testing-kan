@@ -68,7 +68,7 @@ import pickle
 def write_results(pkl_path, model_name, emb_name, optim_name,
                   layers, num_epochs, num_params, best_params, 
                   test_accuracies, test_loss, train_times, 
-                  test_times, train_loss_history, val_loss_history, val_accuracy_history):
+                  test_times, train_loss_history, val_loss_history):
     best_params['pkl_path'] = pkl_path
     best_params['layers'] = layers
     best_params['num_epochs'] = num_epochs
@@ -79,7 +79,6 @@ def write_results(pkl_path, model_name, emb_name, optim_name,
     best_params['test_times'] = test_times # т.к. на этапе тестирования нет обучения, то это по сути время инференса
     best_params['train_loss_history'] = train_loss_history
     best_params['val_loss_history'] = val_loss_history
-    best_params['val_accuracy_history'] = val_accuracy_history
 
     if os.path.exists(pkl_path):
         with open(pkl_path, 'rb') as f:
@@ -92,5 +91,87 @@ def write_results(pkl_path, model_name, emb_name, optim_name,
     with open(pkl_path, 'wb') as file:
         pickle.dump(data, file)
 
-    # !cd /content/experiments_with_kan && git config --global user.email "ваш-email" && git config --global user.name "ваш-username"
-    # !cd /content/experiments_with_kan && git add . && git commit -m "Добавлен файл модели" && git push
+def get_sweep_config(model_name, emb_name, task_type, sweep_name):
+    metric = {}
+    if task_type == 'regression':
+        metric = {'name' : 'val_loss', 'goal' : 'minimize'}
+    else:
+        metric = {'name' : 'val_acc', 'goal' : 'maximize'}
+    
+    max_log_width = (7 if model_name == 'kan' else 11)
+    params = {
+        'lr' : {
+            'distribution' : 'log_uniform_values',
+            'min' : 1e-5,
+            'max' : 1e-2
+        },
+        'weight_decay' : {
+            'distribution' : 'log_uniform_values',
+            'min' : 1e-6,
+            'max' : 1e-3
+        }
+    }
+
+    if model_name == 'mlp':
+        params.update({
+            'mlp_layers' : {'values' : [1, 2, 3, 4]}, # скрытые слои
+            'mlp_width' : {'values' : [2 ** i for i in range(10)]},
+            'use_dropout' : {'values' : [True, False]},
+            'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
+        })
+    elif model_name == 'kan':
+        params.update({
+            'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
+            'kan_width' : {'values' : [2 ** i for i in range(7)]},
+            'grid_size' : {'values' : [i for i in range(3, 30, 2)]},
+        })
+    elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
+        params.update({
+            'kan_layers' : {'values' : [1, 2, 3, 4]},
+            'kan_width' : {'values' : [2 ** i for i in range(7)]},
+            'grid_size' : {'values' : [i for i in range(3, 30, 2)]},
+            'mlp_layers' : {'values' : [1, 2, 3, 4]},
+            'mlp_width' : {'values' : [2 ** i for i in range(11)]},
+            'use_dropout' : {'values' : [True, False]},
+            'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
+        })
+
+    if emb_name != 'none':
+        params.update({
+            'd_embedding' : {'values' : [2 ** i for i in range(1, 8)]}
+        })
+    if emb_name == 'periodic':
+        params.update({
+            'sigma' : {
+                'distribution' : 'uniform',
+                'min' : 0.01,
+                'max' : 100
+            }
+        })
+    
+    config = {
+        'method' : 'random',
+        'metric' : metric,
+        'parameters' : params,
+        'name' : sweep_name
+    }
+    return config
+
+def get_test_config(task_type, sweep_name):
+    metric = {} # чисто технический параметр
+    if task_type == 'regression':
+        metric = {'name' : 'val_loss', 'goal' : 'minimize'}
+    else:
+        metric = {'name' : 'val_acc', 'goal' : 'maximize'}
+    params = {
+        'seed' : {
+            'values' : [i for i in range(10)]
+        }
+    }
+    config = {
+        'method' : 'grid',
+        'metric' : metric,
+        'parameters' : params,
+        'name' : sweep_name
+    }
+    return config
