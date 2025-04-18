@@ -5,6 +5,7 @@ from torch import Tensor
 import torch.nn.functional as F
 import rtdl_num_embeddings
 from models.efficient_kan import KAN
+from models.fastkan import FastKAN
 
 # обычная MLP
 class MLP(nn.Sequential):
