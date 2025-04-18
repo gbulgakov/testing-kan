@@ -133,6 +133,12 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
             'kan_width' : {'values' : [4, 8, 12, 16, 20, 24]},
             'grid_size' : {'values' : [i for i in range(3, 13, 2)]},
         })
+    elif model_name == 'fast_kan': # RBF-KAN
+        params.update({
+            'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
+            'kan_width' : {'values' : [2 ** i for i in range(7)]},
+            'grid_size' : {'values' : [i for i in range(4, 30, 2)]} # пусть будут четные
+        })
     elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
         params.update({
             'kan_layers' : {'values' : [1, 2, 3]}, 
@@ -185,4 +191,3 @@ def get_test_config(task_type, sweep_name):
         'name' : sweep_name
     }
     return config
-
