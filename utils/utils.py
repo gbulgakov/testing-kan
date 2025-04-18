@@ -136,7 +136,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
     elif model_name == 'fast_kan': # RBF-KAN
         params.update({
             'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
-            'kan_width' : {'values' : [2 ** i for i in range(7)]},
+            'kan_width' : {'values' : [2 ** i for i in range(1, 7)]}, # 1 нельзя для LayerNorm
             'grid_size' : {'values' : [i for i in range(4, 30, 2)]} # пусть будут четные
         })
     elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
