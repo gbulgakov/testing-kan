@@ -70,11 +70,15 @@ def model_init_preparation(config, dataset, model_name, emb_name):
     in_features = num_cont_cols * config.get('d_embedding', 1) + num_cat_cols
     out_features = num_classes
     backbone = None
-
+ 
     if model_name == 'kan' or model_name == 'small_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
-        backbone = KAN(layer_widths, grid_size=config['grid_size'], batch_norm=True)
+        backbone = KAN(layer_widths, grid_size=config['grid_size'], batch_norm=False)
     
+    elif model_name == 'batch_norm_kan':
+        layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
+        backbone = KAN(layer_widths, grid_size=config['grid_size'], batch_norm=True)
+
     elif model_name == 'fast_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
         backbone = FastKAN(layer_widths, num_grids=config['grid_size'])
@@ -95,7 +99,7 @@ def model_init_preparation(config, dataset, model_name, emb_name):
         dropout = (config['dropout'] if config['use_dropout'] else 0)
         backbone = nn.Sequential(
             MLP(mlp_layer_widths, dropout),
-            KAN(kan_layer_widths, grid_size=config['grid_size'], batch_norm=True)
+            KAN(kan_layer_widths, grid_size=config['grid_size'], batch_norm=False)
         )
         layer_widths = mlp_layer_widths + kan_layer_widths
     
@@ -104,7 +108,7 @@ def model_init_preparation(config, dataset, model_name, emb_name):
         mlp_layer_widths = [config['kan_width']] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [out_features]
         dropout = (config['dropout'] if config['use_dropout'] else 0)
         backbone = nn.Sequential(
-            KAN(kan_layer_widths, grid_size=config['grid_size'], batch_norm=True),
+            KAN(kan_layer_widths, grid_size=config['grid_size'], batch_norm=False),
             MLP(mlp_layer_widths, dropout)
         )
         layer_widths = kan_layer_widths + mlp_layer_widths
