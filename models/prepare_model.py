@@ -92,6 +92,10 @@ def model_init_preparation(config, dataset, model_name, emb_name):
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
         backbone = FastKAN(layer_widths, num_grids=config['grid_size'])
 
+    elif model_name == 'cheby_kan':
+        layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
+        backbone = ChebyKAN(layer_widths, degree=config['degree'])
+
     elif model_name == 'mlp':
         layer_widths = [in_features] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [out_features]
         dropout = (config['dropout'] if config['use_dropout'] else 0)
