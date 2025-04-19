@@ -1,6 +1,6 @@
 import wandb
 import torch
-from utils import utils
+from utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
 from utils.train import train
 from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 
@@ -43,9 +43,9 @@ def wandb_tuning(project_name, dataset_name,
                 device=device,
                 dataset=dataset,
                 loss_fn=loss_fn,
-                optimizer=utils.get_optimizer(optim_name, model.parameters(), config),
+                optimizer=get_optimizer(optim_name, model.parameters(), config),
             )
-    sweep_config = utils.get_sweep_config(model_name, emb_name, dataset_info['task_type'], 
+    sweep_config = get_sweep_config(model_name, emb_name, dataset_info['task_type'], 
                                     f'tuning {model_name}_{emb_name}_{optim_name} on {dataset_name}')
     
     sweep_id = wandb.sweep(sweep=sweep_config,
