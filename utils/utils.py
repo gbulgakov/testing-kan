@@ -8,6 +8,7 @@ import pickle
 import json
 import torch
 import numpy as np
+from optimizers.ademamix import AdEMAMix
 
 # удобно для масшатбирования
 OPTIMIZERS = { 
