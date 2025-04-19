@@ -139,7 +139,7 @@ def train(
     wandb.log({
         'train_epoch_time' : sum(train_times) / epochs,
         'val_epoch_time' : sum(val_times) / epochs,
-        'num_params' : utils.count_parameters(model),
+        'num_params' : count_parameters(model),
         'in_features' : in_features,
         'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes'])
         # ширины и так будут залоггированы
