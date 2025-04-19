@@ -4,7 +4,7 @@ from torch.nn import MSELoss
 import torch.nn as nn
 import time
 import wandb
-import utils
+from utils.utils import count_parameters
 import torch
 import delu
 
