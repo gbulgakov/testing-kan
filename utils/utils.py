@@ -31,7 +31,9 @@ def seed_everything(seed=0):
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def load_dataset(name, zip_path=f'/kaggle/working/{name}.zip'):
+def load_dataset(name, zip_path=None):
+    if zip_path is None:
+        zip_path = f'/kaggle/working/{name}.zip'
     data = {'train': {}, 'val': {}, 'test': {}}
     
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
