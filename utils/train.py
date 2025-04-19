@@ -15,12 +15,10 @@ BATCH_SIZES = {'gesture' : 128, 'churn' : 128, 'california' : 256, 'house' : 256
                'higgs-small' : 512, 'fb-comments' : 512, 'santander' : 1024, 'covtype' : 1024, 'microsoft' : 1024, 'eye': 128}
 
 def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
-    output = model(batch['X_num'], batch.get('X_cat'))
-    return output.squeeze(-1)
+    return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
 
 # одна эпоха
 def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
-
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -29,7 +27,7 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
     model.train()
     train_loss = 0.0
     pred = []
-    gt = [] # настоящие таргеты
+    gt = []
     start_time = time.time()
 
     for data in delu.iter_batches(dataset['train'], shuffle=True, batch_size=batch_size):
@@ -40,10 +38,17 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
         output = apply_model(data, model)
         if task_type == 'multiclass':
             data['y'] = data['y'].long()
-        loss_value = loss_fn(output, data['y']) 
+        elif task_type == 'binary':
+            data['y'] = data['y'].float()
+            output = output.squeeze(-1)  # Убираем лишнюю размерность для binary
+        else:  # regression
+            data['y'] = data['y'].float()
+            output = output.squeeze(-1)  # Убираем лишнюю размерность для regression
+            
+        loss_value = loss_fn(output, data['y'])
         loss_value.backward()
         optimizer.step()
-        # сохранение истории
+        
         train_loss += loss_value.item()
         if output.dim() > 1:
             pred.append(output.argmax(1))
