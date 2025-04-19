@@ -137,7 +137,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         params.update({
             'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
             'kan_width' : {'values' : [2 ** i for i in range(7)]},
-            'degrees' : {'values' : [i for i in range(1, 13)]} # попробуем такие степени
+            'degree' : {'values' : [i for i in range(1, 13)]} # попробуем такие степени
         })
     elif model_name == 'cheby_kan': # RBF-KAN
         params.update({
