@@ -11,7 +11,7 @@ import delu
 
 from utils.utils import count_parameters
 
-def apply_model(batch: dict[str, Tensor], model) -> Tensor:
+def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
     return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
 
 def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
