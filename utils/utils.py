@@ -9,6 +9,12 @@ import json
 import torch
 import numpy as np
 
+# удобно для масшатбирования
+OPTIMIZERS = { 
+              'adamw' : torch.optim.AdamW,
+              'ademamix' : AdEMAMix 
+             }
+
 def seed_everything(seed=0):
     import random
     random.seed(seed)
@@ -197,4 +203,11 @@ def get_test_config(task_type, sweep_name):
         'name' : sweep_name
     }
     return config
+
+def get_optimizer(optim_name, model_params, config):
+    optim_class = OPTIMIZERS[optim_name]
+    optim_kwargs = {'lr' : config['lr']}
+    if optim_name != 'muon': # это на будущее
+        optim_kwargs['weight_decay'] = config['weight_decay']
+    return optim_class(model_params, **optim_kwargs)
  
