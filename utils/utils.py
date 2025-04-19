@@ -1,6 +1,6 @@
 import shutil
 import zipfile
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 from pathlib import Path
 import os
