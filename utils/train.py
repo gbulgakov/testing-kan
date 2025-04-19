@@ -12,9 +12,10 @@ import delu
 BATCH_SIZES = {'gesture' : 128, 'churn' : 128, 'california' : 256, 'house' : 256, 'adult' : 256, 'otto' : 512, 
                'higgs-small' : 512, 'fb-comments' : 512, 'santander' : 1024, 'covtype' : 1024, 'microsoft' : 1024, 'eye': 128}
 
-
-def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
-    return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
+def apply_model(batch: dict[str, Tensor], model) -> Tensor:
+    output = model(batch['X_num'], batch.get('X_cat'))
+    # Only squeeze for predictions, not for loss calculation
+    return output
 
 # одна эпоха
 def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
@@ -46,8 +47,8 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
         if output.dim() > 1:
             pred.append(output.argmax(1))
         else:
-            pred.append(output >= 0.5)
-        gt.append(data['y'])
+            pred.append(output.squeeze(-1) >= 0.5)  # Squeeze only for prediction
+        gt.append(data['y'].squeeze(-1))  # Squeeze target for accuracy calculation
     scheduler.step()
 
     end_time = time.time()
@@ -85,8 +86,8 @@ def validate(model, device, dataset, loss_fn, part='val'):
             if output.dim() > 1:
                 pred.append(output.argmax(1))
             else:
-                pred.append(output >= 0.5)
-            gt.append(data['y'])
+                pred.append(output.squeeze(-1) >= 0.5)  # Squeeze only for prediction
+            gt.append(data['y'].squeeze(-1))  # Squeeze target for accuracy calculation
         end_time = time.time()
         val_time = end_time - start_time
         
@@ -138,7 +139,7 @@ def train(
     wandb.log({
         'train_epoch_time' : sum(train_times) / epochs,
         'val_epoch_time' : sum(val_times) / epochs,
-        'num_params' : count_parameters(model),
+        'num_params' : utils.count_parameters(model),
         'in_features' : in_features,
         'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes'])
         # ширины и так будут залоггированы
