@@ -86,6 +86,9 @@ def load_dataset(name, zip_path=None):
                         scaler_y.fit(data['train']['y'])  # Обучаем scaler_y только на train
                     data[part]['y'] = scaler_y.transform(data[part]['y'])
             data['scaler_y'] = scaler_y #  для обратного преобразования
+        elif data['info']['task_type'] == 'binclass':
+            for part in ['train', 'val', 'test']:
+                data[part]['y'] = data[part]['y'].reshape(-1, 1)
 
         # Переводим данные в тензоры
         for part in ['train', 'val', 'test']:
