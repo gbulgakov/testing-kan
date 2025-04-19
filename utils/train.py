@@ -11,13 +11,9 @@ import delu
 
 from utils.utils import count_parameters
 
-BATCH_SIZES = {'gesture' : 128, 'churn' : 128, 'california' : 256, 'house' : 256, 'adult' : 256, 'otto' : 512, 
-               'higgs-small' : 512, 'fb-comments' : 512, 'santander' : 1024, 'covtype' : 1024, 'microsoft' : 1024, 'eye': 128}
-
-def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
+def apply_model(batch: dict[str, Tensor], model) -> Tensor:
     return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
 
-# одна эпоха
 def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
@@ -26,8 +22,8 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
     model.to(device)
     model.train()
     train_loss = 0.0
-    pred = []
-    gt = []
+    pred = [] # предсказания
+    gt = [] # настоящие таргеты
     start_time = time.time()
 
     for data in delu.iter_batches(dataset['train'], shuffle=True, batch_size=batch_size):
@@ -38,17 +34,10 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
         output = apply_model(data, model)
         if task_type == 'multiclass':
             data['y'] = data['y'].long()
-        elif task_type == 'binary':
-            data['y'] = data['y'].float()
-            output = output.squeeze(-1)  # Убираем лишнюю размерность для binary
-        else:  # regression
-            data['y'] = data['y'].float()
-            output = output.squeeze(-1)  # Убираем лишнюю размерность для regression
-            
-        loss_value = loss_fn(output, data['y'])
+        loss_value = loss_fn(output, data['y']) 
         loss_value.backward()
         optimizer.step()
-        
+        # сохранение истории
         train_loss += loss_value.item()
         if output.dim() > 1:
             pred.append(output.argmax(1))
@@ -67,7 +56,6 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
 
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
-# валидация
 def validate(model, device, dataset, loss_fn, part='val'):
     model.eval()
     model.to(device)
@@ -105,9 +93,6 @@ def validate(model, device, dataset, loss_fn, part='val'):
 
     return val_loss / num_batches, val_accuracy, val_time # с нормировкой
 
-
-#Возможно ``model.to()`` лучше вызывать 1 раз.
-# обучение целиком
 def train(
     epochs, model, model_name,
     device, dataset, loss_fn,
