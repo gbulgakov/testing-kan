@@ -80,18 +80,15 @@ def load_dataset(name, zip_path=None):
             for part in ['train', 'val', 'test']:
                 y_path = temp_dir / f'{name}' / f'y_{part}.npy'
                 if y_path.exists():
-                    # Запоминаем, был ли y одномерным
-                    was_1d = data[part]['y'].ndim == 1
-                    # Преобразуем в 2D для StandardScaler
-                    if was_1d:
-                        data[part]['y'] = data[part]['y'].reshape(-1, 1)
                     if part == 'train':
-                        scaler_y.fit(data['train']['y'])  # Обучаем scaler_y только на train
-                    data[part]['y'] = scaler_y.transform(data[part]['y'])
-                    # Возвращаем исходную размерность
-                    if was_1d:
-                        data[part]['y'] = data[part]['y'].squeeze()  # Форма: (N,)
-            data['scaler_y'] = scaler_y  # Для обратного преобразования
+                        # Преобразуем в 2D для StandardScaler, сохраняя размерность
+                        y_reshaped = data['train']['y'].reshape(-1, 1)
+                        scaler_y.fit(y_reshaped)
+                    
+                    # Преобразуем, сохраняя оригинальную размерность
+                    y_reshaped = data[part]['y'].reshape(-1, 1)
+                    data[part]['y'] = scaler_y.transform(y_reshaped).reshape(data[part]['y'].shape)
+            data['scaler_y'] = scaler_y
 
         # Переводим данные в тензоры
         for part in ['train', 'val', 'test']:
@@ -102,9 +99,6 @@ def load_dataset(name, zip_path=None):
         shutil.rmtree(temp_dir)
     
     return data
-import os
-import pickle
-
 
 def write_results(pkl_path, model_name, emb_name, optim_name,
                   layers, num_epochs, num_params, best_params, 
