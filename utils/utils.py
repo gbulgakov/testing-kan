@@ -80,15 +80,18 @@ def load_dataset(name, zip_path=None):
             for part in ['train', 'val', 'test']:
                 y_path = temp_dir / f'{name}' / f'y_{part}.npy'
                 if y_path.exists():
-                    if data[part]['y'].ndim == 1:
+                    # Запоминаем, был ли y одномерным
+                    was_1d = data[part]['y'].ndim == 1
+                    # Преобразуем в 2D для StandardScaler
+                    if was_1d:
                         data[part]['y'] = data[part]['y'].reshape(-1, 1)
                     if part == 'train':
                         scaler_y.fit(data['train']['y'])  # Обучаем scaler_y только на train
                     data[part]['y'] = scaler_y.transform(data[part]['y'])
-            data['scaler_y'] = scaler_y #  для обратного преобразования
-        elif data['info']['task_type'] == 'binclass':
-            for part in ['train', 'val', 'test']:
-                data[part]['y'] = data[part]['y'].reshape(-1, 1)
+                    # Возвращаем исходную размерность
+                    if was_1d:
+                        data[part]['y'] = data[part]['y'].squeeze()  # Форма: (N,)
+            data['scaler_y'] = scaler_y  # Для обратного преобразования
 
         # Переводим данные в тензоры
         for part in ['train', 'val', 'test']:
