@@ -16,8 +16,7 @@ BATCH_SIZES = {'gesture' : 128, 'churn' : 128, 'california' : 256, 'house' : 256
 
 def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
     output = model(batch['X_num'], batch.get('X_cat'))
-    # Only squeeze for predictions, not for loss calculation
-    return output
+    return output.squeeze(-1)
 
 # одна эпоха
 def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
@@ -49,8 +48,8 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
         if output.dim() > 1:
             pred.append(output.argmax(1))
         else:
-            pred.append(output.squeeze(-1) >= 0.5)  # Squeeze only for prediction
-        gt.append(data['y'].squeeze(-1))  # Squeeze target for accuracy calculation
+            pred.append(output >= 0.5)
+        gt.append(data['y'])
     scheduler.step()
 
     end_time = time.time()
