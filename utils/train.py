@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Optional, Union, Tensor
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -14,7 +14,7 @@ from utils.utils import count_parameters
 BATCH_SIZES = {'gesture' : 128, 'churn' : 128, 'california' : 256, 'house' : 256, 'adult' : 256, 'otto' : 512, 
                'higgs-small' : 512, 'fb-comments' : 512, 'santander' : 1024, 'covtype' : 1024, 'microsoft' : 1024, 'eye': 128}
 
-def apply_model(batch: dict[str, Tensor], model) -> Tensor:
+def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
     output = model(batch['X_num'], batch.get('X_cat'))
     # Only squeeze for predictions, not for loss calculation
     return output
