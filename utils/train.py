@@ -1,18 +1,20 @@
-from tqdm import tqdm
-from torch.optim.lr_scheduler import ExponentialLR, StepLR, CosineAnnealingLR
-from torch.nn import MSELoss
-import torch.nn as nn
 import time
-import wandb
-from utils.utils import count_parameters
+from typing import Dict, List, Optional, Union, Tensor
+
+import numpy as np
 import torch
+import torch.nn as nn
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from tqdm import tqdm
+import wandb
 import delu
 
+from utils.utils import count_parameters
 
 BATCH_SIZES = {'gesture' : 128, 'churn' : 128, 'california' : 256, 'house' : 256, 'adult' : 256, 'otto' : 512, 
                'higgs-small' : 512, 'fb-comments' : 512, 'santander' : 1024, 'covtype' : 1024, 'microsoft' : 1024, 'eye': 128}
 
-def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
+def apply_model(batch: dict[str, Tensor], model) -> Tensor:
     output = model(batch['X_num'], batch.get('X_cat'))
     # Only squeeze for predictions, not for loss calculation
     return output
@@ -86,8 +88,8 @@ def validate(model, device, dataset, loss_fn, part='val'):
             if output.dim() > 1:
                 pred.append(output.argmax(1))
             else:
-                pred.append(output.squeeze(-1) >= 0.5)  # Squeeze only for prediction
-            gt.append(data['y'].squeeze(-1))  # Squeeze target for accuracy calculation
+                pred.append(output >= 0.5)
+            gt.append(data['y'])
         end_time = time.time()
         val_time = end_time - start_time
         
