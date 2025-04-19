@@ -104,7 +104,11 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         metric = {'name' : 'val_loss', 'goal' : 'minimize'}
     else:
         metric = {'name' : 'val_acc', 'goal' : 'maximize'}
-    
+
+    method = 'bayes'
+    if model_name in ['mlp_kan', 'kan_mlp']:
+        method = 'random'
+  
     max_log_width = (7 if model_name == 'kan' else 11)
     params = {
         'lr' : {
@@ -123,7 +127,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         params.update({
             'mlp_layers' : {'values' : [1, 2, 3, 4]}, # скрытые слои
             'mlp_width' : {'values' : [2 ** i for i in range(11)]},
-             'use_dropout' : {'values' : [True, False],
+            'use_dropout' : {'values' : [True, False],
                              'probabilities' : [0.7, 0.3] # dropout вероятно нужен
                             },
             'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
@@ -146,7 +150,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
             'kan_width' : {'values' : [2 ** i for i in range(7)]},
             'degree' : {'values' : [i for i in range(1, 13)]} # попробуем такие степени
         })
-    elif model_name == 'cheby_kan': # RBF-KAN
+    elif model_name == 'fast_kan': # RBF-KAN
         params.update({
             'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
             'kan_width' : {'values' : [2 ** i for i in range(1, 7)]}, #
@@ -179,7 +183,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         })
     
     config = {
-        'method' : 'random',
+        'method' : method,
         'metric' : metric,
         'parameters' : params,
         'name' : sweep_name
