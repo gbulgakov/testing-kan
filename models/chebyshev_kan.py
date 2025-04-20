@@ -17,7 +17,7 @@ class ChebyKANLayer(nn.Module):
     def forward(self, x):
         # Since Chebyshev polynomial is defined in [-1, 1]
         # We need to normalize x to [-1, 1] using tanh
-        x = torch.tanh(x)
+        x = torch.clamp(torch.tanh(x), -1 + 1e-6, 1 - 1e-6)  # безопасный tanh + clamp
         # View and repeat input degree + 1 times
         x = x.view((-1, self.inputdim, 1)).expand(
             -1, -1, self.degree + 1
