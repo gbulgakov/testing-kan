@@ -79,6 +79,10 @@ def model_init_preparation(config, dataset, model_name, emb_name):
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
         backbone = KAN(layer_widths, grid_size=config['grid_size'], batch_norm=True)
 
+    elif model_name == 'update_grid_kan':
+        layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
+        backbone = KAN(layer_widths, grid_size=config['grid_size'], batch_norm=False, update_grid=True)
+
     elif model_name == 'fast_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
         backbone = FastKAN(layer_widths, num_grids=config['grid_size'])
