@@ -1,7 +1,6 @@
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -11,6 +10,7 @@ import delu
 
 from utils.utils import count_parameters
 
+# Словарь размеров батчей для разных датасетов
 BATCH_SIZES = {
     'gesture': 128,
     'churn': 128,
@@ -109,3 +109,46 @@ def validate(model, device, dataset, loss_fn, part='val'):
     val_accuracy = (pred == gt).float().mean().item()
 
     return val_loss / num_batches, val_accuracy, val_time # с нормировкой
+
+def train(
+    epochs, model, model_name,
+    device, dataset, loss_fn,
+    optimizer
+):
+    scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
+    model.to(device)
+    dataset_name = dataset['info']['id'].split('--')[0]
+    task_type = dataset['info']['task_type']
+    batch_size = BATCH_SIZES[dataset_name]
+
+    train_times = []
+    val_times = []
+    for epoch in tqdm(range(epochs), desc = f'{model_name} on {dataset_name}'):
+        train_loss, train_acc, train_time = train_epoch(model, device, dataset, loss_fn, optimizer, scheduler)
+        val_loss, val_acc, val_time = validate(model, device, dataset, loss_fn)
+
+        wandb.log({
+            'epoch' : epoch,
+            'train_loss' : train_loss,
+            'train_acc' : train_acc,
+            'val_loss' : val_loss,
+            'val_acc' : val_acc,
+            'lr' : scheduler.get_last_lr()[0]
+        })
+        train_times.append(train_time)
+        val_times.append(val_time)
+
+    # размерность входа backbone
+    in_features = dataset['train']['X_num'].shape[1]  # Количество числовых признаков
+    if 'X_cat' in dataset['train']:
+        in_features += dataset['train']['X_cat'].shape[1]  # Добавляем категориальные признаки
+
+    
+    wandb.log({
+        'train_epoch_time' : sum(train_times) / epochs,
+        'val_epoch_time' : sum(val_times) / epochs,
+        'num_params' : count_parameters(model),
+        'in_features' : in_features,
+        'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes'])
+        # ширины и так будут залоггированы
+    })
