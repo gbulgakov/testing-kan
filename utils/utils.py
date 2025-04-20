@@ -133,6 +133,9 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         metric = {'name' : 'val_loss', 'goal' : 'minimize'}
     else:
         metric = {'name' : 'val_acc', 'goal' : 'maximize'}
+    method = 'bayes'
+    if model_name in ['mlp_kan', 'kan_mlp']:
+        method = 'random'
     
     max_log_width = (7 if model_name == 'kan' else 11)
     params = {
@@ -159,9 +162,9 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         })
     elif model_name == 'kan' or model_name == 'batch_norm_kan':
         params.update({
-            'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
-            'kan_width' : {'values' : [2 ** i for i in range(7)]},
-            'grid_size' : {'values' : [i for i in range(3, 30, 2)]},
+            'kan_layers' : {'values' : [2]},   # скрытые слои
+            'kan_width' : {'values' : [32]},
+            'grid_size' : {'values' : [15]},
         })
     elif model_name == 'small_kan': # легкий KAN
         params.update({
