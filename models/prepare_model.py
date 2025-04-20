@@ -70,6 +70,7 @@ def model_init_preparation(config, dataset, model_name, emb_name):
     in_features = num_cont_cols * config.get('d_embedding', 1) + num_cat_cols
     out_features = num_classes
     backbone = None
+    layer_widths = None
  
     if model_name == 'kan' or model_name == 'small_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
