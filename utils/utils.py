@@ -139,12 +139,12 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         'lr' : {
             'distribution' : 'log_uniform_values',
             'min' : 1e-5,
-            'max' : 1e-2
+            'max' : 1e-1 # потенциально могут подойти большие значения
         },
         'weight_decay' : {
             'distribution' : 'log_uniform_values',
             'min' : 1e-6,
-            'max' : 1e-3
+            'max' : 5e-2
         }
     }
 
