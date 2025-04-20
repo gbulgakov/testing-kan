@@ -160,7 +160,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
                             },
             'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
         })
-    elif model_name == 'kan' or model_name == 'batch_norm_kan':
+    elif model_name == 'kan' or model_name == 'batch_norm_kan' or model_name == 'update_grid_kan':
         params.update({
             'kan_layers' : {'values' : [2]},   # скрытые слои
             'kan_width' : {'values' : [32]},
