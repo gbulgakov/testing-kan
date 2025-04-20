@@ -162,9 +162,9 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         })
     elif model_name == 'kan' or model_name == 'batch_norm_kan' or model_name == 'update_grid_kan':
         params.update({
-            'kan_layers' : {'values' : [2]},   # скрытые слои
-            'kan_width' : {'values' : [32]},
-            'grid_size' : {'values' : [15]},
+            'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
+            'kan_width' : {'values' : [2 ** i for i in range(7)]},
+            'grid_size' : {'values' : [3, 30, 2]}
         })
     elif model_name == 'small_kan': # легкий KAN
         params.update({
@@ -199,8 +199,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
 
     if emb_name != 'none':
         params.update({
-             'd_embedding' : {'values' : [32]}
-            #'d_embedding' : {'values' : [2 ** i for i in range(1, 8)]}
+            'd_embedding' : {'values' : [2 ** i for i in range(1, 8)]}
         })
     if emb_name == 'periodic':
         params.update({
