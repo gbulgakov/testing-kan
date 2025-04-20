@@ -73,8 +73,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, emb_nam
 
             test_accuracies.append(test_acc)
             if dataset['info']['task_type'] == 'regression':
-                scaler_sigma = dataset['scaler_y'].scale_
-                test_losses.append(np.sqrt(test_loss) * scaler_sigma) # переходим к RMSE и делаем обратное преобразование
+                test_losses.append(np.sqrt(test_loss)) # переходим к RMSE и делаем обратное преобразование
             else:
                 test_losses.append(test_loss)
             test_times.append(test_time)
