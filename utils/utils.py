@@ -199,7 +199,8 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
 
     if emb_name != 'none':
         params.update({
-            'd_embedding' : {'values' : [2 ** i for i in range(1, 8)]}
+             'd_embedding' : {'values' : 32}
+            #'d_embedding' : {'values' : [2 ** i for i in range(1, 8)]}
         })
     if emb_name == 'periodic':
         params.update({
