@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import rtdl_num_embeddings
 from models.efficient_kan import KAN
 from models.fastkan import FastKAN
+from models.chebyshev_kan import ChebyKAN
 from models.mlp import MLP
 
 # модель с эмбеддингами
