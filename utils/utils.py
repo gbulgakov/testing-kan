@@ -31,6 +31,7 @@ def seed_everything(seed=0):
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+# добавил простейший препроцессинг
 def load_dataset(name, zip_path=None):
     if zip_path is None:
         zip_path = f'/kaggle/working/{name}.zip'
