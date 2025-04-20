@@ -91,7 +91,7 @@ def model_init_preparation(config, dataset, model_name, emb_name):
 
     elif model_name == 'cheby_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
-        backbone = ChebyKAN(layer_widths, degree=config['degree'])
+        backbone = ChebyKAN(layers_hidden=layer_widths, degree=config['degree'])
 
     elif model_name == 'mlp':
         layer_widths = [in_features] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [out_features]
