@@ -9,6 +9,7 @@ from models.fastkan import FastKAN
 from models.chebyshev_kan import ChebyKAN
 from models.mlp import MLP
 
+
 # модель с эмбеддингами
 class ModelWithEmbedding(nn.Module):
     def __init__(
