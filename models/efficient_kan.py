@@ -250,12 +250,13 @@ class KAN(torch.nn.Module):
         base_activation=torch.nn.SiLU,
         grid_eps=0.02,
         grid_range=[-1, 1],
-        batch_norm=True
+        batch_norm=True,
+        update_grid=False
     ):
         super(KAN, self).__init__()
         self.grid_size = grid_size
         self.spline_order = spline_order
-
+        self.update_grid = update_grid
         self.layers = torch.nn.ModuleList()
         for in_features, out_features in zip(layers_hidden, layers_hidden[1:]):
             if batch_norm:
@@ -275,9 +276,9 @@ class KAN(torch.nn.Module):
                 )
             )
 
-    def forward(self, x: torch.Tensor, update_grid=False):
+    def forward(self, x: torch.Tensor):
         for layer in self.layers:
-            if update_grid:
+            if self.update_grid:
                 layer.update_grid(x)
             x = layer(x)
         return x
