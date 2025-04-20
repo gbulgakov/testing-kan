@@ -5,7 +5,7 @@ import wandb
 
 from utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
 from utils.train import train, validate
-from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
+from models.prepare_model import model_init_preparation, ModelWithEmbedding
 
 
 def wandb_tuning(project_name, dataset_name, 
