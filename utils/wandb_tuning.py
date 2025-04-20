@@ -10,7 +10,7 @@ from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 
 def wandb_tuning(project_name, dataset_name, 
                  model_name, emb_name, optim_name, 
-                 dataset, num_epochs=10, num_trials=70):
+                 dataset, num_epochs=10, num_trials=30):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset_info = dataset['info']
     num_cont_cols = dataset['train']['X_num'].shape[1]
