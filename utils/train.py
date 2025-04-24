@@ -61,6 +61,26 @@ def get_batches_indices(model, model_name: str, part: str, batch_size: int, data
         batches = torch.randperm(data_size, device=device).split(batch_size)
     return batches
 
+def loss_fn(y_pred: Tensor, y_true: Tensor) -> Tensor:
+    # TabM produces k predictions. Each of them must be trained separately.
+    # (regression)     y_pred.shape == (batch_size, k)
+    # (classification) y_pred.shape == (batch_size, k, n_classes)
+    k = y_pred.shape[-1 if task_type == 'regression' else -2]
+    return base_loss_fn(
+        y_pred.flatten(0, 1),
+        y_true.repeat_interleave(k) if model.share_training_batches else y_true,
+    )
+
+def get_loss_fn(model_name: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
+    if model_name in ['TabM', 'TabM-mini', 'KanM', 'KanM-mini', 'FastKanM', 'FastKanM-mini', 'ChebyKanM', 'ChebyKanM-mini']:
+        loss_fn = lambda y_pred, y_true: base_loss_fn(
+            y_pred.flatten(0, 1),
+            y_true.repeat_interleave(y_pred.shape[-1 if task_type == 'regression' else -2]) if share_training_batches else y_true,
+        )
+    else:
+        loss_fn = base_loss_fn
+    return loss_fn
+
 
 # def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
 #     return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
@@ -76,7 +96,7 @@ def apply_model(part: str, idx: torch.Tensor, model, data: dict) -> torch.Tensor
         .float()
     )
 
-def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler, model_name):
+def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name):
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -89,6 +109,7 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler, model_nam
     gt = [] # настоящие таргеты
     start_time = time.time()
     
+    loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
     batches = get_batches_indices(model, model_name, 'train', batch_size, train_size, device)
         
     for batch_indices in batches:
@@ -121,7 +142,7 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler, model_nam
 
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
-def validate(model, device, dataset, loss_fn, part, model_name: str):
+def validate(model, device, dataset, base_loss_fn, part, model_name: str):
     model.eval()
     model.to(device)
     val_loss = 0.0
@@ -135,7 +156,7 @@ def validate(model, device, dataset, loss_fn, part, model_name: str):
     batch_size = BATCH_SIZES[dataset_name]
     
     batches = get_batches_indices(model, model_name, part, batch_size, val_size, device)
-    
+    loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
     
     with torch.no_grad():
         start_time = time.time()
