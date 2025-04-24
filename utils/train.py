@@ -92,8 +92,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def apply_model(part: str, idx: torch.Tensor, data: dict, model) -> torch.Tensor:
     return (
         model(
-            data[part]['x_cont'][idx],
-            data[part]['x_cat'][idx] if 'x_cat' in data[part] else None,
+            data[part]['X_num'][idx],
+            data[part]['X_cat'][idx] if 'X_cat' in data[part] else None,
         )
         .squeeze(-1)  # Remove the last dimension for regression tasks.
         .float()
