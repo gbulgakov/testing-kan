@@ -100,7 +100,8 @@ def apply_model(part: str, idx: torch.Tensor, data: dict, model) -> torch.Tensor
     )
 
 def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
-    dataset.to(device) #overkill, скорее всего нужно сделать умнее
+    for key, tensor in dataset['train'].items():
+        tensor.to(device) #overkill, скорее всего нужно сделать умнее
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -147,7 +148,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
 def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
-    dataset.to(device) #overkill, скорее всего нужно убрать
+    for key, tensor in dataset[part].items():
+        tensor.to(device) #overkill, скорее всего нужно сделать умнее
     model.eval()
     model.to(device)
     val_loss = 0.0
