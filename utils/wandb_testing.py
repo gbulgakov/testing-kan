@@ -35,19 +35,18 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
             config = wandb.config
             # seed + подготовка модели
             seed_everything(config['seed'])
-            layers, backbone, bins, loss_fn = model_init_preparation(
+            _, backbone, bins, embeddings_kwargs, loss_fn = model_init_preparation(
                 config=best_params,
                 dataset=dataset,
                 model_name=model_name,
                 emb_name=emb_name
             )
-            model = ModelWithEmbedding(
-                n_cont_features=num_cont_cols,
-                d_embedding=d_embedding,
-                emb_name=emb_name,
-                backbone_model=backbone,
-                bins=bins, 
-                sigma=sigma
+            model = Model(
+                n_num_features=num_cont_cols,
+                backbone=backbone,
+                bins=bins,
+                num_embeddings=embeddings_kwargs,
+                arch_type=arch_type
             )
 
             start_time = time.time()
