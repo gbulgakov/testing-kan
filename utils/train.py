@@ -44,9 +44,8 @@ def select_batch(data: dict, batch_indices: torch.Tensor) -> dict: # косты�
     
     return selected_data
 
-def get_batches_indices(model, model_name: str, part: str, batch_size: int, data_size, device) -> torch.Tensor:
-    ensemble_names = ['TabM', 'TabM-mini', 'KanM', 'KanM-mini', 'FastKanM', 'FastKanM-mini', 'ChebyKanM', 'ChebyKanM-mini']
-    if model_name in ensemble_names:
+def get_batches_indices(model, arch_type: str, part: str, batch_size: int, data_size, device) -> torch.Tensor:
+    if arch_type != 'plain':
         batches = (
         torch.randperm(data_size, device=device).split(batch_size)
         if model.share_training_batches
@@ -62,8 +61,8 @@ def get_batches_indices(model, model_name: str, part: str, batch_size: int, data
     return batches
 
 
-def get_loss_fn(model_name: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
-    if model_name in ['TabM', 'TabM-mini', 'KanM', 'KanM-mini', 'FastKanM', 'FastKanM-mini', 'ChebyKanM', 'ChebyKanM-mini']:
+def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
+    if arch_type != 'plain':
         loss_fn = lambda y_pred, y_true: base_loss_fn(
             y_pred.flatten(0, 1),
             y_true.repeat_interleave(y_pred.shape[-1 if task_type == 'regression' else -2]) if share_training_batches else y_true,
@@ -87,7 +86,7 @@ def apply_model(part: str, idx: torch.Tensor, model, data: dict) -> torch.Tensor
         .float()
     )
 
-def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name):
+def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -100,8 +99,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     gt = [] # настоящие таргеты
     start_time = time.time()
     
-    loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
-    batches = get_batches_indices(model, model_name, 'train', batch_size, train_size, device)
+    loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
+    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device)
         
     for batch_indices in batches:
         # for key, tensor in data.items():
@@ -133,7 +132,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
 
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
-def validate(model, device, dataset, base_loss_fn, part, model_name: str):
+def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
     model.eval()
     model.to(device)
     val_loss = 0.0
@@ -174,8 +173,8 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str):
     return val_loss / num_batches, val_accuracy, val_time # с нормировкой
 
 def train(
-    epochs, model, model_name,
-    device, dataset, loss_fn,
+    epochs, model, model_name, arch_type,
+    device, dataset, base_loss_fn,  
     optimizer
 ):
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
@@ -187,8 +186,8 @@ def train(
     train_times = []
     val_times = []
     for epoch in tqdm(range(epochs), desc = f'{model_name} on {dataset_name}'):
-        train_loss, train_acc, train_time = train_epoch(model, device, dataset, loss_fn, optimizer, scheduler, model_name)
-        val_loss, val_acc, val_time = validate(model, device, dataset, loss_fn)
+        train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
+        val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
 
         wandb.log({
             'epoch' : epoch,
