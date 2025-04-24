@@ -74,7 +74,7 @@ def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_trainin
 
 # def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
 #     return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 @torch.autocast(device.type, enabled=amp_enabled, dtype=amp_dtype)  # type: ignore[code]
 def apply_model(part: str, idx: torch.Tensor, model, data: dict) -> torch.Tensor:
     return (
