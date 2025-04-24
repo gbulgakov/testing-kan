@@ -9,7 +9,7 @@ from models.prepare_model import model_init_preparation, ModelWithEmbedding
 
 
 def wandb_tuning(project_name, dataset_name, 
-                 model_name, emb_name, optim_name, 
+                 model_name, arch_type, emb_name, optim_name, 
                  dataset, num_epochs=10, num_trials=30):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset_info = dataset['info']
@@ -42,10 +42,11 @@ def wandb_tuning(project_name, dataset_name,
             train(
                 epochs=num_epochs,
                 model=model,
-                model_name=f'{model_name}_{emb_name}_{optim_name}',
+                model_name=f'{model_name}_{arch_type}_{emb_name}_{optim_name}',
+                arch_type=arch_type,
                 device=device,
                 dataset=dataset,
-                loss_fn=loss_fn,
+                base_loss_fn=loss_fn,
                 optimizer=get_optimizer(optim_name, model.parameters(), config),
             )
     sweep_config = get_sweep_config(model_name, emb_name, dataset_info['task_type'], 
