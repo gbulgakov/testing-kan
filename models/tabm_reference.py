@@ -884,10 +884,7 @@ class Model(nn.Module):
         x = []
         if x_num is not None:
             x.append(x_num if self.num_module is None else self.num_module(x_num))
-        if x_cat is None:
-            assert self.cat_module is None
-        else:
-            assert self.cat_module is not None
+        if x_cat is not None:
             x.append(self.cat_module(x_cat).float())
         x = torch.column_stack([x_.flatten(1, -1) for x_ in x])
 
