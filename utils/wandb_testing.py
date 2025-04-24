@@ -58,7 +58,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 arch_type=arch_type,
                 device=device,
                 dataset=dataset,
-                loss_fn=loss_fn,
+                base_loss_fn=loss_fn,
                 optimizer=get_optimizer(optim_name, model.parameters(), best_params)
             )
             end_time = time.time()
