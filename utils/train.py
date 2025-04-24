@@ -89,7 +89,7 @@ amp_dtype = (
 amp_enabled = False and amp_dtype is not None
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 @torch.autocast(device.type, enabled=amp_enabled, dtype=amp_dtype)  # type: ignore[code]
-def apply_model(part: str, idx: torch.Tensor, model, data: dict) -> torch.Tensor:
+def apply_model(part: str, idx: torch.Tensor, data: dict, model) -> torch.Tensor:
     return (
         model(
             data[part]['x_cont'][idx],
