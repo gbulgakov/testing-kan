@@ -713,7 +713,7 @@ class Model(nn.Module):
         self,
         *,
         n_num_features: int,
-        n_classes: None | int,
+        # n_classes: None | int, already in backbone
         backbone: nn.Module,
         bins: None | list[Tensor],  # For piecewise-linear encoding/embeddings.
         num_embeddings: None | dict = None,
