@@ -61,15 +61,6 @@ def get_batches_indices(model, model_name: str, part: str, batch_size: int, data
         batches = torch.randperm(data_size, device=device).split(batch_size)
     return batches
 
-def loss_fn(y_pred: Tensor, y_true: Tensor) -> Tensor:
-    # TabM produces k predictions. Each of them must be trained separately.
-    # (regression)     y_pred.shape == (batch_size, k)
-    # (classification) y_pred.shape == (batch_size, k, n_classes)
-    k = y_pred.shape[-1 if task_type == 'regression' else -2]
-    return base_loss_fn(
-        y_pred.flatten(0, 1),
-        y_true.repeat_interleave(k) if model.share_training_batches else y_true,
-    )
 
 def get_loss_fn(model_name: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
     if model_name in ['TabM', 'TabM-mini', 'KanM', 'KanM-mini', 'FastKanM', 'FastKanM-mini', 'ChebyKanM', 'ChebyKanM-mini']:
