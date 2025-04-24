@@ -772,7 +772,7 @@ class Model(nn.Module):
         else:
             if bins is None:
                 self.num_module = make_module(
-                    **num_embeddings, n_features=n_num_features
+                    **num_embeddings
                 )
             else:
                 assert num_embeddings['type'].startswith('PiecewiseLinearEmbeddings')
