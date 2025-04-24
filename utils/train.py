@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 import wandb
-import delu
+# import delu пока убрал из использования
 
 from utils.utils import count_parameters
 
@@ -27,14 +27,60 @@ BATCH_SIZES = {
 }
 
 
-def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
-    return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
+def select_batch(data: dict, batch_indices: torch.Tensor) -> dict: # костыльная функция для того, чтобы переводить индексы батча в привычный формат data
+    selected_data = {}
+    
+    # Обрабатываем вложенные словари с тензорами
+    for key, value in data.items():
+        if isinstance(value, dict):
+            selected_data[key] = {
+                sub_key: sub_value[batch_indices] 
+                for sub_key, sub_value in value.items()
+            }
+        elif isinstance(value, torch.Tensor):
+            selected_data[key] = value[batch_indices]
+        else:
+            selected_data[key] = value  # если не тензор, оставляем как есть
+    
+    return selected_data
 
-def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
+def get_batches_indices(model, model_name: str, part: str, batch_size: int, data_size, device) -> torch.Tensor:
+    ensemble_names = ['TabM', 'TabM-mini', 'KanM', 'KanM-mini', 'FastKanM', 'FastKanM-mini', 'ChebyKanM', 'ChebyKanM-mini']
+    if model_name in ensemble_names:
+        batches = (
+        torch.randperm(data_size, device=device).split(batch_size)
+        if model.share_training_batches
+        else [
+            x.transpose(0, 1).flatten()
+            for x in torch.rand((model.k, data_size), device=device)
+            .argsort(dim=1)
+            .split(batch_size, dim=1)
+        ]
+        )
+    else:
+        batches = torch.randperm(data_size, device=device).split(batch_size)
+    return batches
 
+
+# def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
+#     return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
+
+@torch.autocast(device.type, enabled=amp_enabled, dtype=amp_dtype)  # type: ignore[code]
+def apply_model(part: str, idx: torch.Tensor, model, data: dict) -> torch.Tensor:
+    return (
+        model(
+            data[part]['x_cont'][idx],
+            data[part]['x_cat'][idx] if 'x_cat' in data[part] else None,
+        )
+        .squeeze(-1)  # Remove the last dimension for regression tasks.
+        .float()
+    )
+
+def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler, model_name):
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
+    train_size = dataset['train']['X_num'].shape[0]
 
     model.to(device)
     model.train()
@@ -42,16 +88,18 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
     pred = []
     gt = [] # настоящие таргеты
     start_time = time.time()
-
-    for data in delu.iter_batches(dataset['train'], shuffle=True, batch_size=batch_size):
-        for key, tensor in data.items():
-            data[key] = tensor.to(device)
+    
+    batches = get_batches_indices(model, model_name, 'train', batch_size, train_size, device)
+        
+    for batch_indices in batches:
+        # for key, tensor in data.items():
+        #     data[key] = tensor.to(device)
         # обучение
         optimizer.zero_grad()
-        output = apply_model(data, model)
+        output = apply_model('train', batch_indices, dataset, model)
         if task_type == 'multiclass':
-            data['y'] = data['y'].long()
-        loss_value = loss_fn(output, data['y']) 
+            dataset['train']['y'] = dataset['train']['y'].long()
+        loss_value = loss_fn(output, dataset['train']['y']) 
         loss_value.backward()
         optimizer.step()
         # сохранение истории
@@ -60,7 +108,7 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
             pred.append(output.argmax(1))
         else:
             pred.append(output >= 0.5)
-        gt.append(data['y'])
+        gt.append(dataset['train']['y'])
     scheduler.step()
 
     end_time = time.time()
@@ -73,10 +121,11 @@ def train_epoch(model, device, dataset, loss_fn, optimizer, scheduler):
 
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
-def validate(model, device, dataset, loss_fn, part='val'):
+def validate(model, device, dataset, loss_fn, part, model_name: str):
     model.eval()
     model.to(device)
     val_loss = 0.0
+    val_size = dataset['val']['X_num'].shape[0]
 
     pred = []
     gt = [] # настоящие таргеты
@@ -84,25 +133,27 @@ def validate(model, device, dataset, loss_fn, part='val'):
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
-
+    
+    batches = get_batches_indices(model, model_name, part, batch_size, val_size, device)
+    
+    
     with torch.no_grad():
         start_time = time.time()
-        for data in delu.iter_batches(dataset[part], shuffle=False, batch_size=batch_size):
-            for key, tensor in data.items():
-                data[key] = tensor.to(device)
-            output = apply_model(data, model)
+        for batch_indices in batches:
+            # for key, tensor in data.items():
+            #     data[key] = tensor.to(device)
+            output = apply_model(part, batch_indices, dataset, model)
             if task_type == 'multiclass':
-                data['y'] = data['y'].long()
-            val_loss += loss_fn(output, data['y']).item()
+                dataset[part]['y'] = dataset[part]['y'].long()
+            val_loss += loss_fn(output, dataset[part]['y']).item()
             if output.dim() > 1:
                 pred.append(output.argmax(1))
             else:
                 pred.append(output >= 0.5)
-            gt.append(data['y'])
+            gt.append(dataset[part]['y'])
         end_time = time.time()
         val_time = end_time - start_time
         
-
     num_batches = dataset[part]['y'].shape[0] // batch_size + 1
     pred = torch.cat(pred)
     gt = torch.cat(gt)
@@ -124,7 +175,7 @@ def train(
     train_times = []
     val_times = []
     for epoch in tqdm(range(epochs), desc = f'{model_name} on {dataset_name}'):
-        train_loss, train_acc, train_time = train_epoch(model, device, dataset, loss_fn, optimizer, scheduler)
+        train_loss, train_acc, train_time = train_epoch(model, device, dataset, loss_fn, optimizer, scheduler, model_name)
         val_loss, val_acc, val_time = validate(model, device, dataset, loss_fn)
 
         wandb.log({
