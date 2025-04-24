@@ -10,7 +10,7 @@ from utils.train import train, validate
 from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 
 
-def test_best_model(best_params, project_name, dataset_name, model_name, emb_name, optim_name, dataset, num_epochs=10):
+def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     num_cont_cols = dataset['train']['X_num'].shape[1]
     d_embedding = best_params.get('d_embedding', None)
@@ -23,7 +23,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, emb_nam
     train_times = []
 
     testing_config = get_test_config(dataset['info']['task_type'], 
-                                     f'testing {model_name}_{emb_name}_{optim_name} on {dataset_name}')
+                                     f'testing {model_name}_{arch_type}_{emb_name}_{optim_name} on {dataset_name}')
     # обертка тестирования
     def test_wrapper():
         with wandb.init(
@@ -54,14 +54,15 @@ def test_best_model(best_params, project_name, dataset_name, model_name, emb_nam
             train(
                 epochs=num_epochs,
                 model=model,
-                model_name=f'{model_name}_{emb_name}_{optim_name}',
+                model_name=f'{model_name}_{arch_type}_{emb_name}_{optim_name}',
+                arch_type=arch_type,
                 device=device,
                 dataset=dataset,
                 loss_fn=loss_fn,
                 optimizer=get_optimizer(optim_name, model.parameters(), best_params)
             )
             end_time = time.time()
-            test_loss, test_acc, test_time = validate(model, device, dataset, loss_fn, 'test')
+            test_loss, test_acc, test_time = validate(model, arch_type, device, dataset, loss_fn, 'test')
             # Логируем результаты для каждого сида
             run.log({
                 'test_loss': test_loss,
