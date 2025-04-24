@@ -10,6 +10,7 @@ from models.chebyshev_kan import ChebyKAN, ChebyKANLayer
 from models.efficient_kan import KAN, KANLinear
 from models.fastkan import SplineLinear
 from models.fastkan import RadialBasisFunction
+from models.mlp import MLP
 import rtdl_num_embeddings
 import torch
 import torch.nn as nn
