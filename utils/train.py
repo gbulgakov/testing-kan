@@ -185,7 +185,7 @@ def train(
 
     train_times = []
     val_times = []
-    for epoch in tqdm(range(epochs), desc = f'{model_name} on {dataset_name}'):
+    for epoch in tqdm(range(epochs), desc = f'{model_name}_{arch_type} on {dataset_name}'):
         train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
         val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
 
