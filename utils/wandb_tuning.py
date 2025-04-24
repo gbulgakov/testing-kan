@@ -6,6 +6,7 @@ import wandb
 from utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
 from utils.train import train, validate
 from models.prepare_model import model_init_preparation, ModelWithEmbedding
+from models.tabm_reference import Model
 
 
 def wandb_tuning(project_name, dataset_name, 
@@ -25,20 +26,27 @@ def wandb_tuning(project_name, dataset_name,
             config=sweep_config
         ) as run:
             config = wandb.config
-            _, backbone, bins, loss_fn = model_init_preparation(
+            _, backbone, bins, embeddings_kwargs, loss_fn = model_init_preparation(
                 config=config,
                 dataset=dataset,
                 model_name=model_name,
                 emb_name=emb_name
             )
-            model = ModelWithEmbedding(
-                n_cont_features=num_cont_cols,
-                d_embedding=config.get('d_embedding', None),
-                emb_name=emb_name,
-                backbone_model=backbone,
-                bins=bins, 
-                sigma=config.get('sigma', None)
+            model = Model(
+                n_num_features=num_cont_cols,
+                backbone=backbone,
+                bins=bins,
+                num_embeddings=embeddings_kwargs,
+                arch_type=arch_type
             )
+            # model = ModelWithEmbedding(
+            #     n_cont_features=num_cont_cols,
+            #     d_embedding=config.get('d_embedding', None),
+            #     emb_name=emb_name,
+            #     backbone_model=backbone,
+            #     bins=bins, 
+            #     sigma=config.get('sigma', None)
+            # )
             train(
                 epochs=num_epochs,
                 model=model,
