@@ -141,7 +141,7 @@ def model_init_preparation(config, dataset, model_name, emb_name):
                 'd_embedding': config['d_embedding'],
                 'lite': True,
                 'frequency_init_scale': config['sigma'],
-                'n_cont_features': num_cont_cols
+                'n_features': num_cont_cols
             }
         else:
             num_embeddings = None
