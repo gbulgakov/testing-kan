@@ -30,6 +30,7 @@ def wandb_tuning(project_name, dataset_name,
                 config=config,
                 dataset=dataset,
                 model_name=model_name,
+                arch_type=arch_type,
                 emb_name=emb_name
             )
             model = Model(
