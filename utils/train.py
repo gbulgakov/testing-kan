@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 import wandb
-# import delu пока убрал из использования
+# import delu пока 
 
 from utils.utils import count_parameters
 
@@ -27,7 +27,7 @@ BATCH_SIZES = {
 }
 
 def get_batches_indices(model, arch_type: str, part: str, batch_size: int, data_size, device) -> torch.Tensor:
-    if arch_type != 'plain':
+    if arch_type != 'plain' and part == 'train':
         batches = (
         torch.randperm(data_size, device=device).split(batch_size)
         if model.share_training_batches
@@ -44,28 +44,13 @@ def get_batches_indices(model, arch_type: str, part: str, batch_size: int, data_
 
 
 def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
-    '''
-    Если используем не plain, то 
-       y_pred : (B, k, n_classes) или (B, k)
-    Для общих батчей:
-       y_true : (B, )
-    Иначе:
-       y_true : (B, k, ) 
-
-    Для plain по построению 
-       y_pred : (B, 1, n_classes) или (B, 1, )
-       y_true : (B, )
-    '''
     if arch_type != 'plain':
         loss_fn = lambda y_pred, y_true: base_loss_fn(
-            y_pred.flatten(0, 1), # привели к (B * k, ) или (B * k, )
+            y_pred.flatten(0, 1),
             y_true.repeat_interleave(y_pred.shape[-1 if task_type == 'regression' else -2]) if share_training_batches else y_true,
         )
     else:
-        loss_fn = lambda y_pred, y_true: base_loss_fn(
-            y_pred.squeeze(1),  # Убираем размерность 1
-            y_true
-        )
+        loss_fn = base_loss_fn
     return loss_fn
 
 
@@ -123,6 +108,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
         }
 
         optimizer.zero_grad()
+        
+        # (B, k, n_out) or (B, k) (if regression)5 watch
         output = apply_model(batch_data, model)
         
         loss_value = loss_fn(output, batch_data['y'])
@@ -130,11 +117,23 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
         optimizer.step()
         # сохранение истории
         train_loss += loss_value.item()
-        if output.dim() > 1:
-            pred.append(output.argmax(1))
+        
+        #not needed for regression
+        if model.share_training_batches:
+            output = output.mean(dim=1) # (B, n_out) or (B)
+            if arch_type == 'plain':
+                y_true = batch_data['y'] # (B)
+            else:
+                y_true = batch_data['y'].mean(dim=1) # (B)
         else:
-            pred.append(output >= 0.5)
-        gt.append(batch_data['y'])
+            output = output # (B, k, n_out) or (B, k)
+            y_true = batch_data['y'] # (B, k)
+        if output.dim() > 1:
+            pred.append(output.argmax(1)) # if multiclass then -> argmax over classes
+        else:
+            pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5
+        gt.append(y_true)
+    #gt -> (number_of_batches, B, k)
     scheduler.step()
 
     end_time = time.time()
@@ -143,6 +142,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     num_batches = dataset['train']['y'].shape[0] // batch_size + 1
     pred = torch.cat(pred)
     gt = torch.cat(gt)
+    #accuracy is found as accuracy of mean prediction over k if model.share_training_batches==True
+    # else accuracy of all predictions
     train_accuracy = (pred == gt).float().mean().item()
 
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
@@ -162,6 +163,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
     
+    model.share_training_batches = False
     batches = get_batches_indices(model, model_name, part, batch_size, val_size, device)
     loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
 
@@ -178,13 +180,18 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
                 for key in dataset[part].keys()
             }
 
-            output = apply_model(batch_data, model)
+            output = apply_model(batch_data, model) # (B, k, n_out) or (B, k)
 
             val_loss += loss_fn(output, batch_data['y']).item()
+            
+            output = output.mean(dim=1) # (B, n_out) or (B)
+            
             if output.dim() > 1:
-                pred.append(output.argmax(1))
+                pred.append(output.argmax(1)) 
+                #output.argmax(1) -> (B)
             else:
                 pred.append(output >= 0.5)
+                #output >= 0.5 -> (B)
             gt.append(batch_data['y'])
         end_time = time.time()
         val_time = end_time - start_time
