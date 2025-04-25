@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 import wandb
-# import delu пока убрал 
+# import delu пока убрал из использования
 
 from utils.utils import count_parameters
 
@@ -83,8 +83,8 @@ def apply_model(batch_data: dict, model) -> torch.Tensor:
     )
 
 def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
-    # for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
-    #     dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
+    for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
+        dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -98,11 +98,12 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     start_time = time.time()
     
     loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
-    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device='cpu')
+    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device=device)
 
     for batch_indices in batches:
+        # для удобства
         batch_data = {
-            key: dataset['train'][key][batch_indices].to(device)
+            key: dataset['train'][key][batch_indices]
             for key in dataset['train'].keys()
         }
 
@@ -156,8 +157,9 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     with torch.no_grad():
         start_time = time.time()
         for batch_indices in batches:
+            # для удобства
             batch_data = {
-                key: dataset[part][key][batch_indices].to(device)
+                key: dataset[part][key][batch_indices]
                 for key in dataset[part].keys()
             }
 
