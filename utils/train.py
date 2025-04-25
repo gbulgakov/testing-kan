@@ -166,7 +166,6 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
     
-    model.share_training_batches = False
     batches = get_batches_indices(model, model_name, part, batch_size, val_size, device)
     loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
 
