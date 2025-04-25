@@ -513,6 +513,7 @@ class EfficientKanEnsembleLayer(nn.Module):
             0, 1
         )  # (in_features, batch_size, grid_size + spline_order)
         B = y.transpose(0, 1)  # (in_features, batch_size, out_features)
+        print(A.shape, B.shape)
         solution = torch.linalg.lstsq(
             A, B
         ).solution  # (in_features, grid_size + spline_order, out_features)
