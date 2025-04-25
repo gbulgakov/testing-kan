@@ -571,7 +571,7 @@ def make_efficient_ensemble(module: nn.Module, EnsembleLayer, **kwargs) -> None:
                 EnsembleLayer(
                     in_features=submodule.in_features,
                     out_features=submodule.out_features,
-                    bias=submodule.bias is not None,
+                    # bias=submodule.bias is not None,
                     **kwargs,
                 ),
             )
