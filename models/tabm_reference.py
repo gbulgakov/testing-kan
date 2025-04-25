@@ -518,6 +518,7 @@ class EfficientKanEnsembleLayer(nn.Module):
         # Compute B-spline bases and solve least squares
         A = self.b_splines(x_flat).transpose(0, 1)  # [in_feat, flat_batch, grid+order]
         B = y_flat.transpose(0, 1)  # [in_feat, flat_batch, out_feat]
+        print(A.shape, B.shape)
         solution = torch.linalg.lstsq(A, B).solution  # [in_feat, grid+order, out_feat]
         
         # Reshape coefficients to match input batch structure
