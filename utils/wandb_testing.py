@@ -40,6 +40,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 config=best_params,
                 dataset=dataset,
                 model_name=model_name,
+                arch_type,
                 emb_name=emb_name
             )
             model = Model(
