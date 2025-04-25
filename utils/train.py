@@ -124,14 +124,15 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
             if arch_type == 'plain':
                 y_true = batch_data['y'] # (B)
             else:
-                y_true = batch_data['y'].mean(dim=1) # (B)
+                y_true = batch_data['y'].squeeze(1) # (B)
         else:
             output = output # (B, k, n_out) or (B, k)
             y_true = batch_data['y'] # (B, k)
-        if output.dim() > 1:
-            pred.append(output.argmax(1)) # if multiclass then -> argmax over classes
+        
+        if output.dim() > 1 and model.share_training_batches or output.dim() > 2:
+            pred.append(output.argmax(1)) # if multiclass then -> argmax over classes (pred (B, k))
         else:
-            pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5
+            pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5 (pred (B, k))
         gt.append(y_true)
     #gt -> (number_of_batches, B, k)
     scheduler.step()
