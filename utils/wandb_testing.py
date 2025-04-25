@@ -36,7 +36,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
             config = wandb.config
             # seed + подготовка модели
             seed_everything(config['seed'])
-            _, backbone, bins, embeddings_kwargs, loss_fn = model_init_preparation(
+            _, backbone, bins, embeddings_kwargs, loss_fn, k = model_init_preparation(
                 config=best_params,
                 dataset=dataset,
                 model_name=model_name,
@@ -47,7 +47,8 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 backbone=backbone,
                 bins=bins,
                 num_embeddings=embeddings_kwargs,
-                arch_type=arch_type
+                arch_type=arch_type,
+                k=k
             )
 
             start_time = time.time()
