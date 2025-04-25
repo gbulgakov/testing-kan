@@ -178,6 +178,7 @@ class KANLinear(torch.nn.Module):
         )
         
         # Prepare tensors for batch solving
+        print(A.shape, B.shape)
         A = A.permute(2, 0, 1)  # (in_features, batch_size, k, grid_size + spline_order)
         B = y.transpose(2, 0, 1)  # (in_features, batch_size, k, out_features)
         
