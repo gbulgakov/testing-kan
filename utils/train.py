@@ -129,12 +129,13 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
             output = output # (B, k, n_out) or (B, k)
             y_true = batch_data['y'] # (B, k)
         
-        if output.dim() > 1 and model.share_training_batches or output.dim() > 2:
-            pred.append(output.argmax(1)) # if multiclass then -> argmax over classes (pred (B, k))
+        
+        n_bound = 1 if model.share_training_batches else 2
+        if output.dim() > n_bound:
+            pred.append(output.argmax(1)) # if multiclass then -> argmax over classes (pred (B, k) or (B))
         else:
-            pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5 (pred (B, k))
+            pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
         gt.append(y_true)
-    #gt -> (number_of_batches, B, k)
     scheduler.step()
 
     end_time = time.time()
@@ -142,7 +143,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
 
     num_batches = dataset['train']['y'].shape[0] // batch_size + 1
     pred = torch.cat(pred)
-    gt = torch.cat(gt)
+    gt = torch.cat(gt) #(dataset_size, k) or (dataset_size)
+    print(pred.shape, gt.shape)
     #accuracy is found as accuracy of mean prediction over k if model.share_training_batches==True
     # else accuracy of all predictions
     train_accuracy = (pred == gt).float().mean().item()
