@@ -494,114 +494,85 @@ class EfficientKanEnsembleLayer(nn.Module):
         bases = bases.reshape(*original_shape[:-1], -1)
         return bases.contiguous()
     
-    # def curve2coeff(self, x: torch.Tensor, y: torch.Tensor):
-    #     """
-    #     Compute the coefficients of the curve that interpolates the given points.
-    #     Supports inputs with extra dimensions (e.g., for sequences or images).
-
-    #     Args:
-    #         x (torch.Tensor): Input tensor of shape (batch_size, ..., in_features).
-    #         y (torch.Tensor): Output tensor of shape (..., in_features, out_features).
-
-    #     Returns:
-    #         torch.Tensor: Coefficients tensor of shape (out_features, in_features, grid_size + spline_order).
-    #     """
-    #     original_shape = x.shape[:-1]  # Save all leading dimensions
-    #     in_features = x.size(-1)
-    #     out_features = y.size(-1)
-    #     n_elements = torch.tensor(original_shape).prod().item()  # Total batch elements
-        
-    #     # Reshape inputs to merge all extra dimensions
-    #     x_flat = x.reshape(n_elements, in_features)
-    #     y_flat = y.reshape(n_elements, in_features, out_features)
-        
-    #     # Compute B-spline bases and solve least squares
-    #     A = self.b_splines(x_flat).transpose(0, 1)  # [in_feat, flat_batch, grid+order]
-    #     B = y_flat.transpose(0, 1)  # [in_feat, flat_batch, out_feat]
-    #     print(A.shape, B.shape)
-        
-    #     solution = torch.linalg.lstsq(A, B).solution  # [in_feat, grid+order, out_feat]
-        
-    #     # Reshape coefficients to match input batch structure
-    #     coeff = solution.permute(2, 0, 1)  # [out_feat, in_feat, grid+order]
-    #     coeff = coeff.unsqueeze(0).expand([n_elements, *coeff.size()])  # Add batch dim
-        
-    #     # Restore original batch dimensions
-    #     final_shape = original_shape + (self.out_features, self.in_features, self.grid_size + self.spline_order)
-    #     return coeff.reshape(final_shape).contiguous()
     
     def curve2coeff(self, x: torch.Tensor, y: torch.Tensor):
         """
-        Compute the coefficients of the curve that interpolates the given points for an ensemble of tasks.
+        Compute the coefficients of the curve that interpolates the given points.
 
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, k, in_features) for ensemble,
-                            or (batch_size, in_features) for single task.
-            y (torch.Tensor): Output tensor of shape (batch_size, k, in_features, out_features) for ensemble,
-                            or (batch_size, in_features, out_features) for single task.
+            x (torch.Tensor): Input tensor of shape (batch_size, in_features).
+            y (torch.Tensor): Output tensor of shape (batch_size, in_features, out_features).
 
         Returns:
-            torch.Tensor: Coefficients tensor of shape (k, out_features, in_features, grid_size + spline_order) for ensemble,
-                        or (out_features, in_features, grid_size + spline_order) for single task.
+            torch.Tensor: Coefficients tensor of shape (out_features, in_features, grid_size + spline_order).
         """
-        # Handle single task case (add k=1 dimension)
-        if x.dim() == 2:
-            x = x.unsqueeze(1)  # (batch_size, 1, in_features)
-        if y.dim() == 3:
-            y = y.unsqueeze(1)  # (batch_size, 1, in_features, out_features)
-        
-        batch_size, k, in_features = x.shape
-        _, _, _, out_features = y.shape
-        
-        assert x.size(0) == y.size(0) and x.size(1) == y.size(1)
-        assert x.size(2) == self.in_features
-        assert y.size(2) == self.in_features
-        assert y.size(3) == self.out_features
+        assert x.dim() == 2 and x.size(1) == self.in_features
+        assert y.size() == (x.size(0), self.in_features, self.out_features)
 
-        # Compute B-splines for all x in the ensemble
-        # A shape: (batch_size, k, in_features, grid_size + spline_order)
-        A = self.b_splines(x.flatten(0, 1)).view(
-            batch_size, k, in_features, -1
-        )
-        
-        # Prepare tensors for batch solving
-        A = A.permute(2, 0, 1, 3)  # (in_features, batch_size, k, grid_size + spline_order)
-        B = y.permute(2, 0, 1, 3)  # (in_features, batch_size, k, out_features)
-        
-        # Reshape for batch solving: combine batch and in_features dimensions
-        # A_flat = A.reshape(-1, k, self.grid_size + self.spline_order)
-        # B_flat = B.reshape(-1, k, out_features)
-        
-        # Solve all systems in parallel
-        print(A.shape, B.shape)
-        result = torch.linalg.lstsq(
+        A = self.b_splines(x).transpose(
+            0, 1
+        )  # (in_features, batch_size, grid_size + spline_order)
+        B = y.transpose(0, 1)  # (in_features, batch_size, out_features)
+        solution = torch.linalg.lstsq(
             A, B
-        ).solution  # (out_features, in_features, k, grid_size + spline_order)
-        
-        # Reshape back and permute dimensions
-        # solution = solution.view(
-        #     batch_size, in_features, self.grid_size + self.spline_order, out_features
-        # )
-        # result = solution.permute(3, 1, 2, 0)  # (out_features, in_features, grid_size + spline_order, batch_size)
-        
-        # # For ensemble, we need to average over batch dimension or handle differently
-        # # Here I assume we want separate coefficients for each ensemble member
-        # # So we transpose to get (k, out_features, in_features, grid_size + spline_order)
-        # result = result.permute(3, 0, 1, 2)  # (batch_size, out_features, in_features, grid_size + spline_order)
-        
-        # # If we want to average over batch (common approach):
-        # result = result.mean(dim=0)  # (out_features, in_features, grid_size + spline_order)
-        
-        # # Or if we want to keep ensemble dimension:
-        # # result = result.permute(1, 2, 3, 0)  # (out_features, in_features, grid_size + spline_order, batch_size)
-        # # Then you might need to decide how to combine these
-        
-        # assert result.size() == (
-        #     self.out_features,
-        #     self.in_features,
-        #     self.grid_size + self.spline_order,
-        # )
+        ).solution  # (in_features, grid_size + spline_order, out_features)
+        result = solution.permute(
+            2, 0, 1
+        )  # (out_features, in_features, grid_size + spline_order)
+
+        assert result.size() == (
+            self.out_features,
+            self.in_features,
+            self.grid_size + self.spline_order,
+        )
         return result.contiguous()
+    
+    
+    # def curve2coeff(self, x: torch.Tensor, y: torch.Tensor):
+    #     """
+    #     Compute the coefficients of the curve that interpolates the given points for an ensemble of tasks.
+
+    #     Args:
+    #         x (torch.Tensor): Input tensor of shape (batch_size, k, in_features) for ensemble,
+    #                         or (batch_size, in_features) for single task.
+    #         y (torch.Tensor): Output tensor of shape (batch_size, k, in_features, out_features) for ensemble,
+    #                         or (batch_size, in_features, out_features) for single task.
+
+    #     Returns:
+    #         torch.Tensor: Coefficients tensor of shape (k, out_features, in_features, grid_size + spline_order) for ensemble,
+    #                     or (out_features, in_features, grid_size + spline_order) for single task.
+    #     """
+    #     # Handle single task case (add k=1 dimension)
+    #     if x.dim() == 2:
+    #         x = x.unsqueeze(1)  # (batch_size, 1, in_features)
+    #     if y.dim() == 3:
+    #         y = y.unsqueeze(1)  # (batch_size, 1, in_features, out_features)
+        
+    #     batch_size, k, in_features = x.shape
+    #     _, _, _, out_features = y.shape
+        
+    #     assert x.size(0) == y.size(0) and x.size(1) == y.size(1)
+    #     assert x.size(2) == self.in_features
+    #     assert y.size(2) == self.in_features
+    #     assert y.size(3) == self.out_features
+
+    #     # Compute B-splines for all x in the ensemble
+    #     # A shape: (batch_size, k, in_features, grid_size + spline_order)
+    #     A = self.b_splines(x.flatten(0, 1)).view(
+    #         batch_size, k, in_features, -1
+    #     )
+        
+    #     # Prepare tensors for solving
+    #     A = A.permute(2, 0, 1, 3)  # (in_features, batch_size, k, grid_size + spline_order)
+    #     B = y.permute(2, 0, 1, 3)  # (in_features, batch_size, k, out_features)
+        
+
+    #     # Solve all systems in parallel
+    #     result = torch.linalg.lstsq(
+    #         A, B
+    #     ).solution  # (out_features, in_features, k, grid_size + spline_order)
+        
+    #     return result.contiguous()
     
     def forward(self, x: torch.Tensor):
         #x.shape == (B, k, D)
