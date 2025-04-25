@@ -15,21 +15,22 @@ def wandb_tuning(project_name, dataset_name,
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset_info = dataset['info']
     num_cont_cols = dataset['train']['X_num'].shape[1]
-    sweep_name = f'tuning {model_name}_{arch_type}_{emb_name}_{optim_name} on {dataset_name}'
+    sweep_name = f'tuning {model_name}_{emb_name}_{optim_name} on {dataset_name}'
 
     # просто оборачиваем нашу train
     def sweep_wrapper():
         with wandb.init(
             project=f'{project_name}',
             group=f'dataset_{dataset_name}',
-            tags=[f'arch_{arch_type}', f'model_{model_name}', f'emb_{emb_name}', f'optim_{optim_name}', f'dataset_{dataset_name}', 'tuning'],
+            tags=[f'model_{model_name}', f'emb_{emb_name}', f'optim_{optim_name}', f'dataset_{dataset_name}', 'tuning'],
             config=sweep_config
         ) as run:
             config = wandb.config
-            _, backbone, bins, embeddings_kwargs, loss_fn = model_init_preparation(
+            _, backbone, bins, embeddings_kwargs, loss_fn, k = model_init_preparation(
                 config=config,
                 dataset=dataset,
                 model_name=model_name,
+                arch_type=arch_type,
                 emb_name=emb_name
             )
             model = Model(
@@ -37,7 +38,8 @@ def wandb_tuning(project_name, dataset_name,
                 backbone=backbone,
                 bins=bins,
                 num_embeddings=embeddings_kwargs,
-                arch_type=arch_type
+                arch_type=arch_type,
+                k=k
             )
             # model = ModelWithEmbedding(
             #     n_cont_features=num_cont_cols,
@@ -58,7 +60,7 @@ def wandb_tuning(project_name, dataset_name,
                 optimizer=get_optimizer(optim_name, model.parameters(), config),
             )
     sweep_config = get_sweep_config(model_name, emb_name, dataset_info['task_type'], 
-                                    f'tuning {model_name}_{arch_type}_{emb_name}_{optim_name} on {dataset_name}')
+                                    f'tuning {model_name}_{emb_name}_{optim_name} on {dataset_name}')
     
     sweep_id = wandb.sweep(sweep=sweep_config,
                            project=f'{project_name}',
