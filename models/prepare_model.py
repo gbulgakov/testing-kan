@@ -55,7 +55,7 @@ class ModelWithEmbedding(nn.Module):
         return self.backbone(x)
 
 # подготовка модели 
-def model_init_preparation(config, dataset, model_name, emb_name):
+def model_init_preparation(config, dataset, model_name, emb_name, arch_type):
     dataset_info = dataset['info']
     num_cont_cols = dataset['train']['X_num'].shape[1]
     num_cat_cols = 0
@@ -155,6 +155,9 @@ def model_init_preparation(config, dataset, model_name, emb_name):
         loss_fn = F.cross_entropy
     else:
         loss_fn =  F.mse_loss
+    k = None
+    if arch_type != 'plain':
+        k = 16 #сюда можно добавить тюнинг через config
         
-    return layer_widths, backbone, bins, num_embeddings, loss_fn
+    return layer_widths, backbone, bins, num_embeddings, loss_fn, k
     
