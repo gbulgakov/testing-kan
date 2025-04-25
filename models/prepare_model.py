@@ -55,7 +55,7 @@ class ModelWithEmbedding(nn.Module):
         return self.backbone(x)
 
 # подготовка модели 
-def model_init_preparation(config, dataset, model_name, emb_name, arch_type):
+def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     dataset_info = dataset['info']
     num_cont_cols = dataset['train']['X_num'].shape[1]
     num_cat_cols = 0
