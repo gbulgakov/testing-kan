@@ -144,7 +144,6 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     num_batches = dataset['train']['y'].shape[0] // batch_size + 1
     pred = torch.cat(pred)
     gt = torch.cat(gt) #(dataset_size, k) or (dataset_size)
-    print(pred.shape, gt.shape)
     #accuracy is found as accuracy of mean prediction over k if model.share_training_batches==True
     # else accuracy of all predictions
     train_accuracy = (pred == gt).float().mean().item()
