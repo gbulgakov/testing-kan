@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 import wandb
-# import delu пока убрал из использования
+# import delu пока 
 
 from utils.utils import count_parameters
 
