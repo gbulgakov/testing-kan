@@ -566,7 +566,7 @@ class EfficientKanEnsembleLayer(nn.Module):
         
         # Prepare tensors for batch solving
         A = A.permute(2, 0, 1, 3)  # (in_features, batch_size, k, grid_size + spline_order)
-        B = y.transpose(2, 0, 1, 3)  # (in_features, batch_size, k, out_features)
+        B = y.permute(2, 0, 1, 3)  # (in_features, batch_size, k, out_features)
         
         # Reshape for batch solving: combine batch and in_features dimensions
         # A_flat = A.reshape(-1, k, self.grid_size + self.spline_order)
