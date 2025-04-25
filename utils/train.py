@@ -89,7 +89,8 @@ amp_dtype = (
 amp_enabled = False and amp_dtype is not None
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 @torch.autocast(device.type, enabled=amp_enabled, dtype=amp_dtype)  # type: ignore[code]
-def apply_model(part: str, idx: torch.Tensor, data: dict, model) -> torch.Tensor:
+def apply_model(part: str, idx: torch.Tensor, data: dict, model, device) -> torch.Tensor:
+    idx = idx.to(device)
     return (
         model(
             data[part]['X_num'][idx],
@@ -101,7 +102,7 @@ def apply_model(part: str, idx: torch.Tensor, data: dict, model) -> torch.Tensor
 
 def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
     for key, tensor in dataset['train'].items():
-        tensor.to(device) #overkill, скорее всего нужно сделать умнее
+        dataset['train'][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -115,17 +116,19 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     start_time = time.time()
     
     loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
-    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device)
+    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device=device)
+    if task_type == 'multiclass':
+        dataset['train']['y'] = dataset['train']['y'].long()
         
     for batch_indices in batches:
         # for key, tensor in data.items():
         #     data[key] = tensor.to(device)
         # обучение
         optimizer.zero_grad()
-        output = apply_model('train', batch_indices, dataset, model)
-        if task_type == 'multiclass':
-            dataset['train']['y'] = dataset['train']['y'].long()
-        loss_value = loss_fn(output, dataset['train']['y']) 
+        output = apply_model('train', batch_indices, dataset, model, device)
+        # dataset['train']['y'] = dataset['train']['y'].to(device)
+        
+        loss_value = loss_fn(output, dataset['train']['y'][batch_indices])
         loss_value.backward()
         optimizer.step()
         # сохранение истории
@@ -134,7 +137,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
             pred.append(output.argmax(1))
         else:
             pred.append(output >= 0.5)
-        gt.append(dataset['train']['y'])
+        gt.append(dataset['train']['y'][batch_indices])
     scheduler.step()
 
     end_time = time.time()
@@ -149,7 +152,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     
 def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
     for key, tensor in dataset[part].items():
-        tensor.to(device) #overkill, скорее всего нужно сделать умнее
+        dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
     model.eval()
     model.to(device)
     val_loss = 0.0
@@ -170,7 +173,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
         for batch_indices in batches:
             # for key, tensor in data.items():
             #     data[key] = tensor.to(device)
-            output = apply_model(part, batch_indices, dataset, model)
+            output = apply_model(part, batch_indices, dataset, model, device)
             if task_type == 'multiclass':
                 dataset[part]['y'] = dataset[part]['y'].long()
             val_loss += loss_fn(output, dataset[part]['y']).item()
