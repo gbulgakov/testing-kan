@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 import wandb
-# import delu пока 
+# import delu пока убрал из использования
 
 from utils.utils import count_parameters
 
@@ -44,13 +44,28 @@ def get_batches_indices(model, arch_type: str, part: str, batch_size: int, data_
 
 
 def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
+    '''
+    Если используем не plain, то 
+       y_pred : (B, k, n_classes) или (B, k)
+    Для общих батчей:
+       y_true : (B, )
+    Иначе:
+       y_true : (B, k, ) 
+
+    Для plain по построению 
+       y_pred : (B, 1, n_classes) или (B, 1, )
+       y_true : (B, )
+    '''
     if arch_type != 'plain':
         loss_fn = lambda y_pred, y_true: base_loss_fn(
-            y_pred.flatten(0, 1),
+            y_pred.flatten(0, 1), # привели к (B * k, ) или (B * k, )
             y_true.repeat_interleave(y_pred.shape[-1 if task_type == 'regression' else -2]) if share_training_batches else y_true,
         )
     else:
-        loss_fn = base_loss_fn
+        loss_fn = lambda y_pred, y_true: base_loss_fn(
+            y_pred.squeeze(1),  # Убираем размерность 1
+            y_true
+        )
     return loss_fn
 
 
