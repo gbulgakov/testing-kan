@@ -15,7 +15,7 @@ def wandb_tuning(project_name, dataset_name,
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset_info = dataset['info']
     num_cont_cols = dataset['train']['X_num'].shape[1]
-    num_cat_cols = dataset['train']['X_cat'].shape[1]
+    num_cat_cols = (dataset['train']['X_cat'].shape[1] if dataset['train']['X_cat'] is not None else 0)
     sweep_name = f'tuning {model_name}_{emb_name}_{optim_name} on {dataset_name}'
 
     # просто оборачиваем нашу train
