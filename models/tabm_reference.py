@@ -424,6 +424,7 @@ class EfficientKanEnsembleLayer(nn.Module):
         self.enable_standalone_scale_spline = enable_standalone_scale_spline
         self.base_activation = base_activation()
         self.grid_eps = grid_eps
+        self.scaling_init = scaling_init
         
         self.register_parameter(
             'r',
@@ -475,6 +476,15 @@ class EfficientKanEnsembleLayer(nn.Module):
             scaling_init_fn(self.s)
     
     def b_splines(self, x: torch.Tensor):
+        """
+        Compute the B-spline bases for the given input tensor.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, in_features).
+
+        Returns:
+            torch.Tensor: B-spline bases tensor of shape (batch_size, in_features, grid_size + spline_order).
+        """
         original_shape = x.shape  # (batch_size, k, in_features) or (batch_size, in_features)
         x = x.reshape(-1, self.in_features)  # (flattened, in_features)
         
@@ -490,18 +500,20 @@ class EfficientKanEnsembleLayer(nn.Module):
                 (grid[:, k+1:] - x) / (grid[:, k+1:] - grid[:, 1:-k]) * bases[:, :, 1:]
             )
         
-        # Восстановление исходной формы + доп измерение
-        bases = bases.reshape(*original_shape, -1)
+        # Восстановление исходной формы (кроме последней размерности)
+        bases = bases.reshape(*original_shape, -1) # (batch_size, k, in_features, grid_size + spline_order) или (batch_size, in_features, grid_size + spline_order)
         return bases.contiguous()
     
     
     def curve2coeff(self, x: torch.Tensor, y: torch.Tensor):
+        # на самом деле x (grid_size + 1, in_features)
+        # y (grid_size + 1, in_features, out_features)
         """
         Compute the coefficients of the curve that interpolates the given points.
 
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, in_features).
-            y (torch.Tensor): Output tensor of shape (batch_size, in_features, out_features).
+            x (torch.Tensor): Input tensor of shape (grid_size + 1, in_features).
+            y (torch.Tensor): Output tensor of shape (grid_size + 1, in_features, out_features).b
 
         Returns:
             torch.Tensor: Coefficients tensor of shape (out_features, in_features, grid_size + spline_order).
@@ -511,9 +523,10 @@ class EfficientKanEnsembleLayer(nn.Module):
 
         A = self.b_splines(x).transpose(
             0, 1
-        )  # (in_features, batch_size, grid_size + spline_order)
+        )  # (in_features, grid_size + 1)
         B = y.transpose(0, 1)  # (in_features, batch_size, out_features)
-        print(A.shape, B.shape)
+        # print(A.shape, B.shape)
+        # torch.Size([256, 6]) torch.Size([32, 6, 2])
         solution = torch.linalg.lstsq(
             A, B
         ).solution  # (in_features, grid_size + spline_order, out_features)
