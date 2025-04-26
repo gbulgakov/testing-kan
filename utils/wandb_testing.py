@@ -15,7 +15,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     num_cont_cols = dataset['train']['X_num'].shape[1]
     X_cat = dataset['train'].get('X_cat', None).shape
-    num_cat_cols = (X_cat.shape[1] if shape != None else 0)
+    num_cat_cols = (X_cat.shape[1] if X_cat != None else 0)
     d_embedding = best_params.get('d_embedding', None)
     sigma = best_params.get('sigma', None)
 
