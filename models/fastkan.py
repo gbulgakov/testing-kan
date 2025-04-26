@@ -60,8 +60,8 @@ class FastKANLayer(nn.Module):
         spline_weight_init_scale: float = 0.1,
     ) -> None:
         super().__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.in_features = input_dim # нужно для make_efficient_ensemble
+        self.out_features = output_dim # нужно для make_efficient_ensemble
         self.layernorm = None
         if use_layernorm:
             assert input_dim > 1, "Do not use layernorms on 1D inputs. Set `use_layernorm=False`."
