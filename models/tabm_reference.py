@@ -418,10 +418,10 @@ class EfficientKanEnsembleLayer(nn.Module):
                 torch.Tensor(out_features, in_features)
             )
 
-        self.noise = noise
-        self.base = base
-        self.spline = spline
-        self.enable_standalone_spline = enable_standalone_spline
+        self.scale_noise = scale_noise
+        self.scale_base = scale_base
+        self.scale_spline = scale_spline
+        self.enable_standalone_scale_spline = enable_standalone_scale_spline
         self.base_activation = base_activation()
         self.grid_eps = grid_eps
         self.scaling_init = scaling_init
@@ -446,26 +446,26 @@ class EfficientKanEnsembleLayer(nn.Module):
             
     
     def reset_parameters(self):
-        torch.nn.init.kaiming_uniform_(self.base_weight, a=math.sqrt(5) * self.base)
+        torch.nn.init.kaiming_uniform_(self.base_weight, a=math.sqrt(5) * self.scale_base)
         with torch.no_grad():
             noise = (
                 (
                     torch.rand(self.grid_size + 1, self.in_features, self.out_features)
                     - 1 / 2
                 )
-                * self.noise
+                * self.scale_noise
                 / self.grid_size
             )
             self.spline_weight.data.copy_(
-                (self.spline if not self.enable_standalone_spline else 1.0)
+                (self.scale_spline if not self.enable_standalone_scale_spline else 1.0)
                 * self.curve2coeff(
                     self.grid.T[self.spline_order : -self.spline_order],
                     noise,
                 )
             )
-            if self.enable_standalone_spline:
-                # torch.nn.init.constant_(self.spline_scaler, self.spline)
-                torch.nn.init.kaiming_uniform_(self.spline_scaler, a=math.sqrt(5) * self.spline)
+            if self.enable_standalone_scale_spline:
+                # torch.nn.init.constant_(self.spline_scaler, self.scale_spline)
+                torch.nn.init.kaiming_uniform_(self.spline_scaler, a=math.sqrt(5) * self.scale_spline)
         
         scaling_init_fn = {'ones': nn.init.ones_, 'random-signs': init_random_signs_}[
             self.scaling_init
@@ -591,7 +591,7 @@ class EfficientKanEnsembleLayer(nn.Module):
     def scaled_spline_weight(self):
         return self.spline_weight * (
             self.spline_scaler.unsqueeze(-1)
-            if self.enable_standalone_spline
+            if self.enable_standalone_scale_spline
             else 1.0
         )
     
