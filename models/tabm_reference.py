@@ -490,8 +490,8 @@ class EfficientKanEnsembleLayer(nn.Module):
                 (grid[:, k+1:] - x) / (grid[:, k+1:] - grid[:, 1:-k]) * bases[:, :, 1:]
             )
         
-        # Восстановление исходной формы (кроме последней размерности)
-        bases = bases.reshape(*original_shape[:-1], -1)
+        # Восстановление исходной формы + доп измерение
+        bases = bases.reshape(*original_shape, -1)
         return bases.contiguous()
     
     
