@@ -121,10 +121,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
         #not needed for regression
         if model.share_training_batches:
             output = output.mean(dim=1) # (B, n_out) or (B)
-            if arch_type == 'plain':
-                y_true = batch_data['y'] # (B)
-            else:
-                y_true = batch_data['y'].squeeze(1) # (B)
+            y_true = batch_data['y'] # (B)
         else:
             output = output # (B, k, n_out) or (B, k)
             y_true = batch_data['y'] # (B, k)
@@ -144,6 +141,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     num_batches = dataset['train']['y'].shape[0] // batch_size + 1
     pred = torch.cat(pred)
     gt = torch.cat(gt) #(dataset_size, k) or (dataset_size)
+    print(pred.shape, gt.shape)
     #accuracy is found as accuracy of mean prediction over k if model.share_training_batches==True
     # else accuracy of all predictions
     train_accuracy = (pred == gt).float().mean().item()
