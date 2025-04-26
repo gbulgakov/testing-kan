@@ -67,7 +67,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 optimizer=get_optimizer(optim_name, model.parameters(), best_params)
             )
             end_time = time.time()
-            test_loss, test_acc, test_time = validate(model, arch_type, device, dataset, loss_fn, 'test')
+            test_loss, test_acc, test_time = validate(model, device, dataset, loss_fn, 'test', model_name, arch_type)
             # Логируем результаты для каждого сида
             run.log({
                 'test_loss': test_loss,
