@@ -525,8 +525,6 @@ class EfficientKanEnsembleLayer(nn.Module):
             0, 1
         )  # (in_features, grid_size + 1)
         B = y.transpose(0, 1)  # (in_features, batch_size, out_features)
-        # print(A.shape, B.shape)
-        # torch.Size([256, 6]) torch.Size([32, 6, 2])
         solution = torch.linalg.lstsq(
             A, B
         ).solution  # (in_features, grid_size + spline_order, out_features)
@@ -542,51 +540,6 @@ class EfficientKanEnsembleLayer(nn.Module):
         return result.contiguous()
     
     
-    # def curve2coeff(self, x: torch.Tensor, y: torch.Tensor):
-    #     """
-    #     Compute the coefficients of the curve that interpolates the given points for an ensemble of tasks.
-
-    #     Args:
-    #         x (torch.Tensor): Input tensor of shape (batch_size, k, in_features) for ensemble,
-    #                         or (batch_size, in_features) for single task.
-    #         y (torch.Tensor): Output tensor of shape (batch_size, k, in_features, out_features) for ensemble,
-    #                         or (batch_size, in_features, out_features) for single task.
-
-    #     Returns:
-    #         torch.Tensor: Coefficients tensor of shape (k, out_features, in_features, grid_size + spline_order) for ensemble,
-    #                     or (out_features, in_features, grid_size + spline_order) for single task.
-    #     """
-    #     # Handle single task case (add k=1 dimension)
-    #     if x.dim() == 2:
-    #         x = x.unsqueeze(1)  # (batch_size, 1, in_features)
-    #     if y.dim() == 3:
-    #         y = y.unsqueeze(1)  # (batch_size, 1, in_features, out_features)
-        
-    #     batch_size, k, in_features = x.shape
-    #     _, _, _, out_features = y.shape
-        
-    #     assert x.size(0) == y.size(0) and x.size(1) == y.size(1)
-    #     assert x.size(2) == self.in_features
-    #     assert y.size(2) == self.in_features
-    #     assert y.size(3) == self.out_features
-
-    #     # Compute B-splines for all x in the ensemble
-    #     # A shape: (batch_size, k, in_features, grid_size + spline_order)
-    #     A = self.b_splines(x.flatten(0, 1)).view(
-    #         batch_size, k, in_features, -1
-    #     )
-        
-    #     # Prepare tensors for solving
-    #     A = A.permute(2, 0, 1, 3)  # (in_features, batch_size, k, grid_size + spline_order)
-    #     B = y.permute(2, 0, 1, 3)  # (in_features, batch_size, k, out_features)
-        
-
-    #     # Solve all systems in parallel
-    #     result = torch.linalg.lstsq(
-    #         A, B
-    #     ).solution  # (out_features, in_features, k, grid_size + spline_order)
-        
-    #     return result.contiguous()
     @property
     def scaled_spline_weight(self):
         return self.spline_weight * (
@@ -786,7 +739,7 @@ class Model(nn.Module):
         self,
         *,
         n_num_features: int,
-        # n_classes: None | int, already in backbone
+        n_cat_features: None | int,
         backbone: nn.Module,
         bins: None | list[Tensor],  # For piecewise-linear encoding/embeddings.
         num_embeddings: None | dict = None,
@@ -854,7 +807,7 @@ class Model(nn.Module):
             first_adapter_sections.extend(
                 num_embeddings['d_embedding'] for _ in range(n_num_features)
             )
-
+        d_cat = (n_cat_features if n_cat_features != None else 0)
         '''Уже обработаны категориальные признаки, так что делаем вид, что их нет'''
         # # >>> Categorical features
         # self.cat_module = (
@@ -918,7 +871,7 @@ class Model(nn.Module):
                 assert first_adapter_init is not None
                 self.minimal_ensemble_adapter = ScaleEnsemble(
                     k,
-                    d_flat,
+                    n_num_features + n_cat_features,
                     init='random-signs' if num_embeddings is None else 'normal',
                 )
                 _init_first_adapter(
