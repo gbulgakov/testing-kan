@@ -16,7 +16,7 @@ def wandb_tuning(project_name, dataset_name,
     dataset_info = dataset['info']
     num_cont_cols = dataset['train']['X_num'].shape[1]
     X_cat = dataset['train'].get('X_cat', None)
-    num_cat_cols = (X_cat.shape[1] if shape != None else 0)
+    num_cat_cols = (X_cat.shape[1] if X_cat != None else 0)
     sweep_name = f'tuning {model_name}_{emb_name}_{optim_name} on {dataset_name}'
 
     # просто оборачиваем нашу train
