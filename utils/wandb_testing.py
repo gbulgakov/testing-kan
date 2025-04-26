@@ -14,6 +14,7 @@ from models.tabm_reference import Model
 def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     num_cont_cols = dataset['train']['X_num'].shape[1]
+    num_cat_cols = dataset['train']['X_cat'].shape[1]
     d_embedding = best_params.get('d_embedding', None)
     sigma = best_params.get('sigma', None)
 
@@ -30,7 +31,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         with wandb.init(
             project=f'{project_name}',
             group=f'dataset_{dataset_name}',
-            tags=[f'arch_{arch_type}', f'model_{model_name}', f'emb_{emb_name}', f'optim_{optim_name}', f'dataset_{dataset_name}', 'testing'],
+            tags=[f'model_{model_name}', f'emb_{emb_name}', f'optim_{optim_name}', f'dataset_{dataset_name}', 'testing'],
             config=testing_config
         ) as run:
             config = wandb.config
@@ -45,6 +46,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
             )
             model = Model(
                 n_num_features=num_cont_cols,
+                n_cat_features=num_cat_cols,
                 backbone=backbone,
                 bins=bins,
                 num_embeddings=embeddings_kwargs,
@@ -64,15 +66,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 optimizer=get_optimizer(optim_name, model.parameters(), best_params)
             )
             end_time = time.time()
-            test_loss, test_acc, test_time = validate(
-                model=model,
-                arch_type=arch_type,
-                device=device,
-                dataset=dataset,
-                base_loss_fn=loss_fn,
-                part='test',
-                model_name=f'{model_name}_{arch_type}_{emb_name}_{optim_name}'
-            )
+            test_loss, test_acc, test_time = validate(model, arch_type, device, dataset, loss_fn, 'test')
             # Логируем результаты для каждого сида
             run.log({
                 'test_loss': test_loss,
