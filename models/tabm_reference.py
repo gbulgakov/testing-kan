@@ -808,6 +808,7 @@ class Model(nn.Module):
                 num_embeddings['d_embedding'] for _ in range(n_num_features)
             )
         d_cat = (n_cat_features if n_cat_features != None else 0)
+        first_adapter_sections.extend(1 for _ in range(d_cat)) # нужно для корректной работы _init_first_adapter, TODO: посмотреть на что это влияет, убрать, если не нужно
         '''Уже обработаны категориальные признаки, так что делаем вид, что их нет'''
         # # >>> Categorical features
         # self.cat_module = (
