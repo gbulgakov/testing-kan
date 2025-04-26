@@ -47,7 +47,7 @@ def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_trainin
     if arch_type != 'plain':
         loss_fn = lambda y_pred, y_true: base_loss_fn(
             y_pred.flatten(0, 1),
-            y_true.repeat_interleave(y_pred.shape[-1 if task_type != 'classification' else -2]) if share_training_batches else y_true,
+            y_true.repeat_interleave(y_pred.shape[-1 if task_type != 'multiclass' else -2]) if share_training_batches else y_true,
         )
     else:
         loss_fn = lambda y_pred, y_true: base_loss_fn(y_pred.squeeze(1), y_true)
