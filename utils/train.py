@@ -111,7 +111,6 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
         
         # (B, k, n_out) or (B, k) (if regression)
         output = apply_model(batch_data, model)
-        print(output.shape, batch_data['y'].shape)
         loss_value = loss_fn(output, batch_data['y'])
         loss_value.backward()
         optimizer.step()
