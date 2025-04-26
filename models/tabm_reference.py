@@ -413,7 +413,7 @@ class EfficientKanEnsembleLayer(nn.Module):
         self.spline_weight = torch.nn.Parameter(
             torch.Tensor(out_features, in_features, grid_size + spline_order)
         )
-        if enable_standalone_spline:
+        if enable_standalone_scale_spline:
             self.spline_scaler = torch.nn.Parameter(
                 torch.Tensor(out_features, in_features)
             )
