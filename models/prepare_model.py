@@ -121,6 +121,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         num_embeddings = {
             'type': 'PiecewiseLinearEmbeddings',
             'd_embedding': config['d_embedding'],
+            'activation': False,
             'version': 'B'
         }
     elif emb_name == 'piecewiselineart' or emb_name == 'PLE-T': # это мы  больше не используем
@@ -129,6 +130,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         num_embeddings = {
             'type': 'PiecewiseLinearEmbeddings',
             'd_embedding': config['d_embedding'],
+            'activation': False ,
             'version': 'B'
         }
     else:
