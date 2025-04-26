@@ -639,9 +639,15 @@ def make_efficient_ensemble(module: nn.Module, EnsembleLayer, **kwargs) -> None:
             make_efficient_ensemble(submodule, EnsembleLayer, **kwargs)
 
 
-def _get_first_ensemble_layer(backbone: MLP) -> LinearEfficientEnsemble:
+def _get_first_ensemble_layer(backbone):
     if isinstance(backbone, MLP):
         return backbone.blocks[0][0]  # type: ignore[code]
+    elif isinstance(backbone, ChebyKAN):
+        return backbone.layers[0]
+    elif isinstance(backbone, FastKAN):
+        return backbone.layers[0]
+    elif isinstance(backbone, KAN):
+        return backbone.layers[0]
     else:
         raise RuntimeError(f'Unsupported backbone: {backbone}')
 
