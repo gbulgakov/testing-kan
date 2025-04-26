@@ -15,6 +15,7 @@ def wandb_tuning(project_name, dataset_name,
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset_info = dataset['info']
     num_cont_cols = dataset['train']['X_num'].shape[1]
+    num_cat_cols = dataset['train']['X_cat'].shape[1]
     sweep_name = f'tuning {model_name}_{emb_name}_{optim_name} on {dataset_name}'
 
     # просто оборачиваем нашу train
@@ -35,20 +36,13 @@ def wandb_tuning(project_name, dataset_name,
             )
             model = Model(
                 n_num_features=num_cont_cols,
+                n_cat_features=num_cat_cols,
                 backbone=backbone,
                 bins=bins,
                 num_embeddings=embeddings_kwargs,
                 arch_type=arch_type,
                 k=k
             )
-            # model = ModelWithEmbedding(
-            #     n_cont_features=num_cont_cols,
-            #     d_embedding=config.get('d_embedding', None),
-            #     emb_name=emb_name,
-            #     backbone_model=backbone,
-            #     bins=bins, 
-            #     sigma=config.get('sigma', None)
-            # )
             train(
                 epochs=num_epochs,
                 model=model,
