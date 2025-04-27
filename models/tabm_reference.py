@@ -872,7 +872,7 @@ class Model(nn.Module):
                 assert first_adapter_init is not None
                 self.minimal_ensemble_adapter = ScaleEnsemble(
                     k,
-                    n_num_features + n_cat_features,
+                    d_num + d_cat,
                     init='random-signs' if num_embeddings is None else 'normal',
                 )
                 _init_first_adapter(
