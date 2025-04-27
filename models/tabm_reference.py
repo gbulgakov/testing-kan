@@ -143,11 +143,11 @@ class LinearEfficientEnsemble(nn.Module):
         k: int,
         ensemble_scaling_in: bool,
         ensemble_scaling_out: bool,
-        ensemble_bias: bool = True, # WARNING: костыль, чтобы упросить вызов make_efficient_ensemble  далее
+        ensemble_bias: bool = True, # WARNING: True - костыль, чтобы упросить вызов make_efficient_ensemble  далее
         scaling_init: Literal['ones', 'random-signs'],
     ):
         assert k > 0
-        if ensemble_bias:
+        if ensemble_bias: # говорит о наличии различных bias
             assert bias
         super().__init__()
 
@@ -480,7 +480,7 @@ class EfficientKanEnsembleLayer(nn.Module):
         Compute the B-spline bases for the given input tensor.
 
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, in_features).
+            x (torch.Tensor): Input tensor of shape (batch_size, in_features) or (batch_size, k, in_features).
 
         Returns:
             torch.Tensor: B-spline bases tensor of shape (batch_size, in_features, grid_size + spline_order).
@@ -601,7 +601,7 @@ def make_efficient_ensemble(module: nn.Module, EnsembleLayer, **kwargs) -> None:
 
 def _get_first_ensemble_layer(backbone):
     if isinstance(backbone, MLP):
-        return backbone.blocks[0][0]  # type: ignore[code]
+        return backbone.layers[0][0]  # type: ignore[code]
     elif isinstance(backbone, ChebyKAN):
         return backbone.layers[0]
     elif isinstance(backbone, FastKAN):
@@ -872,7 +872,7 @@ class Model(nn.Module):
                 assert first_adapter_init is not None
                 self.minimal_ensemble_adapter = ScaleEnsemble(
                     k,
-                    d_num + d_cat,
+                    n_num_features + n_cat_features,
                     init='random-signs' if num_embeddings is None else 'normal',
                 )
                 _init_first_adapter(
