@@ -84,8 +84,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     elif model_name == 'batch_norm_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
         layer_kwargs = {
-            'grid_size' : config['grid_size'],
-            'batch_norm' : True
+            'grid_size' : config['grid_size']
         }
         backbone = KAN(layer_widths, batch_norm=True, **layer_kwargs)
 
