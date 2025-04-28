@@ -58,7 +58,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 k=k,
                 **layer_kwargs
             )
-            train_time, val_time, test_loss, test_acc, test_best_epoch = train(
+            train_time, val_time, test_best_loss, test_best_acc, test_best_epoch = train(
                 epochs=num_epochs,
                 model=model,
                 model_name=f'{model_name}_{arch_type}_{emb_name}_{optim_name}',
@@ -70,7 +70,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
             )
             # Логируем результаты для каждого сида
             logs = {
-                'test_loss': test_loss,
+                'test_best_loss': test_best_loss,
                 'test_best_epoch' : test_best_epoch,
                 'train_time': train_time,
                 'val_time': val_time,
@@ -78,14 +78,14 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
             }
 
             if task_type != 'regression':
-                logs.update({'test_acc' : test_acc})
+                logs.update({'test_best_acc' : test_best_acc})
             
             run.log(logs)
-            test_accuracies.append(test_acc)
+            test_accuracies.append(test_best_acc)
             if dataset['info']['task_type'] == 'regression':
-                test_losses.append(np.sqrt(test_loss)) # переходим к RMSE
+                test_losses.append(np.sqrt(test_best_loss)) # переходим к RMSE
             else:
-                test_losses.append(test_loss)
+                test_losses.append(test_best_loss)
             val_times.append(val_time)
             train_times.append(train_time)
             best_epochs.append(test_best_epoch)
