@@ -250,7 +250,7 @@ class KAN(torch.nn.Module):
         base_activation=torch.nn.SiLU,
         grid_eps=0.02,
         grid_range=[-1, 1],
-        batch_norm=True,
+        batch_norm=False,
         update_grid=False
     ):
         super(KAN, self).__init__()
