@@ -77,10 +77,9 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     if model_name == 'kan' or model_name == 'small_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
         layer_kwargs = {
-            'grid_size' : config['grid_size'],
-            'batch_norm' : False
+            'grid_size' : config['grid_size']
         }
-        backbone = KAN(layer_widths, **layer_kwargs)
+        backbone = KAN(layer_widths, batch_norm=False, **layer_kwargs)
     
     elif model_name == 'batch_norm_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
@@ -88,7 +87,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
             'grid_size' : config['grid_size'],
             'batch_norm' : True
         }
-        backbone = KAN(layer_widths, **layer_kwargs)
+        backbone = KAN(layer_widths, batch_norm=True, **layer_kwargs)
 
     elif model_name == 'fast_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
