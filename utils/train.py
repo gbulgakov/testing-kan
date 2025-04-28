@@ -274,7 +274,7 @@ def train(
     }
     if task_type != 'regression':
         final_logs.update({
-            'val_bess_acc' : val_best_epoch['acc'],
+            'val_best_acc' : val_best_epoch['acc'],
             'test_best_acc' : test_best_epoch['acc']
         })
     
