@@ -31,6 +31,13 @@ def seed_everything(seed=0):
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+# True, если эпоха 1 лучше эпохи 2
+def compare_epochs(task_type, epoch_dict1, epoch_dict2):
+    if task_type == 'regression':
+        return epoch_dict1['loss'] < epoch_dict2['loss']
+    else:
+        return epoch_dict1['acc'] > epoch_dict2['acc']
+
 # добавил простейший препроцессинг
 def load_dataset(name, zip_path=None):
     if zip_path is None:
@@ -130,12 +137,9 @@ def write_results(pkl_path, model_name, emb_name, optim_name,
 def get_sweep_config(model_name, emb_name, task_type, sweep_name):
     metric = {}
     if task_type == 'regression':
-        metric = {'name' : 'val_loss', 'goal' : 'minimize'}
+        metric = {'name' : 'val_best_loss', 'goal' : 'minimize'}
     else:
-        metric = {'name' : 'val_acc', 'goal' : 'maximize'}
-    method = 'bayes'
-    if model_name in ['mlp_kan', 'kan_mlp']:
-        method = 'random'
+        metric = {'name' : 'val_best_acc', 'goal' : 'maximize'}
     
     max_log_width = (7 if model_name == 'kan' else 11)
     params = {
@@ -155,7 +159,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         params.update({
             'mlp_layers' : {'values' : [1, 2, 3, 4]}, # скрытые слои
             'mlp_width' : {'values' : [2 ** i for i in range(11)]},
-             'use_dropout' : {'values' : [True, False],
+            'use_dropout' : {'values' : [True, False],
                              'probabilities' : [0.7, 0.3] # dropout вероятно нужен
                             },
             'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
@@ -211,7 +215,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         })
     
     config = {
-        'method' : 'random',
+        'method' : ('bayes' if model_name not in ['mlp_kan', 'kan_mlp'] else 'random'),
         'metric' : metric,
         'parameters' : params,
         'name' : sweep_name
@@ -221,9 +225,9 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
 def get_test_config(task_type, sweep_name):
     metric = {} # чисто технический параметр
     if task_type == 'regression':
-        metric = {'name' : 'val_loss', 'goal' : 'minimize'}
+        metric = {'name' : 'val_best_loss', 'goal' : 'minimize'}
     else:
-        metric = {'name' : 'val_acc', 'goal' : 'maximize'}
+        metric = {'name' : 'val_best_acc', 'goal' : 'maximize'}
     params = {
         'seed' : {
             'values' : [i for i in range(10)]
