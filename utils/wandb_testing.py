@@ -56,7 +56,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 arch_type=arch_type,
                 k=k
             )
-            full_train_time, val_time, test_loss, test_acc, test_best_epoch = train(
+            train_time, val_time, test_loss, test_acc, test_best_epoch = train(
                 epochs=num_epochs,
                 model=model,
                 model_name=f'{model_name}_{arch_type}_{emb_name}_{optim_name}',
@@ -66,12 +66,11 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 base_loss_fn=loss_fn,
                 optimizer=get_optimizer(optim_name, model.parameters(), best_params)
             )
-            test_loss, test_acc, test_time = validate(model, device, dataset, loss_fn, 'test', model_name, arch_type)
             # Логируем результаты для каждого сида
             logs = {
                 'test_loss': test_loss,
                 'test_best_epoch' : test_best_epoch,
-                'full_train_time': full_train_time,
+                'train_time': train_time,
                 'val_time': val_time,
                 'seed': config['seed']
             }
@@ -122,5 +121,5 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         run.log(stats)
         stats['name'] = f'{model_name}_{emb_name}_{optim_name}'
         
-    keys = ['model', 'mean_test_acc', 'std_test_acc', 'mean_test_loss', 'std_test_loss', 'mean_avl_time', 'mean_train_time']
+    keys = ['model', 'mean_test_acc', 'std_test_acc', 'mean_test_loss', 'std_test_loss', 'mean_val_time', 'mean_train_time']
     return {key : stats[key] for key in keys} # чисто технически для удобства
