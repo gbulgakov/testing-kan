@@ -104,10 +104,9 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
 
     elif model_name == 'mlp':
         layer_widths = [in_features] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [out_features]
-        layer_kwargs = {
-            'dropout' : (config['dropout'] if config['use_dropout'] else 0)
-        }
-        backbone = MLP(layer_widths, **layer_kwargs)
+        layer_kwargs = {}
+        dropout = (config['dropout'] if config['use_dropout'] else 0)
+        backbone = MLP(layer_widths, dropout)
         
     # ниже MLP и KAN соединены последовательно с шириной первого/последнего KAN слоя
     elif model_name == 'mlp_kan':
