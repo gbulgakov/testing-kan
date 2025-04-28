@@ -159,7 +159,9 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         params.update({
             'mlp_layers' : {'values' : [1, 2, 3, 4]}, # скрытые слои
             'mlp_width' : {'values' : [2 ** i for i in range(11)]},
-            'use_dropout' : {'values' : [True, False]},
+            'use_dropout' : {'values' : [True, False],
+                             'probabilities' : [0.7, 0.3] # dropout вероятно нужен
+                            },
             'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
         })
     elif model_name == 'kan' or model_name == 'batch_norm_kan' or model_name == 'update_grid_kan':
@@ -213,7 +215,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         })
     
     config = {
-        'method' : ('bayes' if model_name not in ['mlp_kan', 'kan_mlp'] else 'random'),
+        'method' : 'random',
         'metric' : metric,
         'parameters' : params,
         'name' : sweep_name
