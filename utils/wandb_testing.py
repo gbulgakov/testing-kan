@@ -13,6 +13,7 @@ from models.tabm_reference import Model
 
 def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    task_type = dataset['info']['task_type']
     num_cont_cols = dataset['train']['X_num'].shape[1]
     X_cat = dataset['train'].get('X_cat', None)
     num_cat_cols = (X_cat.shape[1] if X_cat != None else 0)
@@ -75,17 +76,17 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 'seed': config['seed']
             }
 
-            if dataset['info']['task_type'] != 'regression':
+            if task_type != 'regression':
                 logs.update({'test_acc' : test_acc})
             
             run.log(logs)
             test_accuracies.append(test_acc)
             if dataset['info']['task_type'] == 'regression':
-                test_losses.append(np.sqrt(test_loss)) # переходим к RMSE и делаем обратное преобразование
+                test_losses.append(np.sqrt(test_loss)) # переходим к RMSE
             else:
                 test_losses.append(test_loss)
             val_times.append(val_time)
-            train_times.append(full_train_time)
+            train_times.append(train_time)
             best_epochs.append(test_best_epoch)
 
     test_id = wandb.sweep(sweep=testing_config,
@@ -103,23 +104,30 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
     ) as run:
         stats = {
             'model' : f'{model_name}_{arch_type}_{emb_name}_{optim_name}',
-            'mean_test_acc': np.mean(test_accuracies),
-            'std_test_acc': np.std(test_accuracies),
             'mean_test_loss': np.mean(test_losses),
             'std_test_loss': np.std(test_losses),
             'mean_val_time': np.mean(val_times),
             'mean_train_time': np.mean(train_times),
             'mean_best_epoch' : np.mean(best_epochs),
             'std_best_epoch' : np.std(best_epochs),
-            'all_test_accs' : test_accuracies,
             'all_test_losses' : test_losses,
             'all_val_times' : val_times,
             'all_train_times' : train_times,
             'all_best_epochs' : best_epochs
         }
+        if task_type != 'regression':
+            stats.update({
+                'mean_test_acc': np.mean(test_accuracies),
+                'std_test_acc': np.std(test_accuracies),
+                'all_test_accs' : test_accuracies
+            })
         
         run.log(stats)
         stats['name'] = f'{model_name}_{emb_name}_{optim_name}'
-        
-    keys = ['model', 'mean_test_acc', 'std_test_acc', 'mean_test_loss', 'std_test_loss', 'mean_val_time', 'mean_train_time']
+    
+    keys = (
+        ['model'] 
+        + (['mean_test_acc', 'std_test_acc'] if task_type != 'regression' else [])
+        + ['mean_test_loss', 'std_test_loss', 'mean_val_time', 'mean_train_time']
+    )
     return {key : stats[key] for key in keys} # чисто технически для удобства
