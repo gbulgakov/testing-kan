@@ -126,11 +126,10 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
             y_true = batch_data['y'] # (B, k)
         
         
-        n_bound = 1 if model.share_training_batches else 2
-        if output.dim() > n_bound:
-            pred.append(output.argmax(1)) # if multiclass then -> argmax over classes (pred (B, k) or (B))
-        else:
+        if tasktype == 'binclass':
             pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
+        else:
+            pred.append(output.argmax(1)) # if multiclass then -> argmax over classes (pred (B, k) or (B))
         gt.append(y_true)
     scheduler.step()
 
@@ -182,13 +181,15 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
             val_loss += loss_fn(output, batch_data['y']).item()
             
             output = output.mean(dim=1) # (B, n_out) or (B)
-            
-            if output.dim() > 1:
-                pred.append(output.argmax(1)) 
-                #output.argmax(1) -> (B)
-            else:
+
+            #not needed for regression
+            if tasktype == 'binclass':
                 pred.append(output >= 0.5)
                 #output >= 0.5 -> (B)
+            else:
+                pred.append(output.argmax(1))  #multiclass
+                #output.argmax(1) -> (B)
+
             gt.append(batch_data['y'])
         end_time = time.time()
         val_time = end_time - start_time
