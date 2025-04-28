@@ -8,7 +8,7 @@ from tqdm import tqdm
 import wandb
 # import delu пока 
 
-from utils.utils import count_parameters
+from utils.utils import count_parameters, compare_epochs
 
 # Словарь размеров батчей для разных датасетов
 BATCH_SIZES = {
@@ -214,36 +214,76 @@ def train(
     # приведение к long можно сделать 1 раз, а не на каждой эпохе
     if task_type == 'multiclass':
         dataset['train']['y'] = dataset['train']['y'].long()
-        
 
     train_times = []
-    val_times = []
+    val_times = [] # времена инференса можно замерять и на val!
+
+    val_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
+    test_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
+
     for epoch in tqdm(range(epochs), desc = f'{model_name}_{arch_type} on {dataset_name}'):
         train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
-        val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
 
-        wandb.log({
+        # тестируем и валидируем
+        val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
+        test_loss, test_acc, test_time = validate(model, device, dataset, base_loss_fn, 'test', model_name, arch_type)
+ 
+        # логируем
+        logs = {
             'epoch' : epoch,
             'train_loss' : train_loss,
-            'train_acc' : train_acc,
             'val_loss' : val_loss,
-            'val_acc' : val_acc,
+            'test_loss' : test_loss,
             'lr' : scheduler.get_last_lr()[0]
-        })
+        }
+        if task_type != 'regression':
+            logs.update({
+                'train_acc' : train_acc,
+                'val_acc' : val_acc,
+                'test_acc' : test_acc
+            })
+        wandb.log(logs)
         train_times.append(train_time)
         val_times.append(val_time)
+
+
+        # обновляем лучшие эпохи для val/test
+        val_epoch = {'epoch' : epoch, 'loss' : val_loss, 'acc' : val_acc}
+        test_epoch = {'epoch' : epoch, 'loss' : test_loss, 'acc' : test_acc}
+        if compare_epochs(task_type, val_epoch, val_best_epoch):
+            val_best_epoch = val_epoch
+        if compare_epochs(task_type, test_epoch, test_best_epoch):
+            test_best_epoch = test_epoch
 
     # размерность входа backbone
     in_features = dataset['train']['X_num'].shape[1]  # Количество числовых признаков
     if 'X_cat' in dataset['train']:
         in_features += dataset['train']['X_cat'].shape[1]  # Добавляем категориальные признаки
 
-    
-    wandb.log({
+    final_logs = {
         'train_epoch_time' : sum(train_times) / epochs,
         'val_epoch_time' : sum(val_times) / epochs,
         'num_params' : count_parameters(model),
         'in_features' : in_features,
-        'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes'])
+        'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes']),
+        'val_best_epoch' : val_best_epoch['epoch'],
+        'val_best_loss' : val_best_epoch['loss'],
+        'test_best_epoch' : test_best_epoch['epoch'],
+        'test_best_loss' : test_best_epoch['loss']
         # ширины и так будут залоггированы
-    })
+    }
+    if task_type != 'regression':
+        final_logs.update({
+            'val_bess_acc' : val_best_epoch['acc'],
+            'test_best_acc' : test_best_epoch['acc']
+        })
+    
+    wandb.log(final_logs)
+
+return (
+    sum(train_times) / epochs,  # Среднее время обучения
+    sum(val_times) / epochs,    # Среднее время валидации
+    test_best_epoch['loss'],    # Лучшие потери на тесте
+    test_best_epoch['acc'],     # Лучшая точность на тесте
+    test_best_epoch['epoch']    # Лучшая эпоха на тесте
+)
