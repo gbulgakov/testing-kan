@@ -584,7 +584,6 @@ def make_efficient_ensemble(module: nn.Module, EnsembleLayer, **kwargs) -> None:
     "ensemblification" as in the paper about "FiLM-Ensemble".
     Additional experiments are required to make conclusions.
     """
-    assert kwargs, 'Now we are intrested in non-default EfficientEnsembleLayers'
     for name, submodule in list(module.named_children()):
         if isinstance(submodule, nn.Linear) or isinstance(submodule, ChebyKANLayer) or isinstance(submodule, FastKANLayer) or isinstance(submodule, KANLinear):
             module.add_module(
