@@ -280,10 +280,10 @@ def train(
     
     wandb.log(final_logs)
 
-return (
-    sum(train_times) / epochs,  # Среднее время обучения
-    sum(val_times) / epochs,    # Среднее время валидации
-    test_best_epoch['loss'],    # Лучшие потери на тесте
-    test_best_epoch['acc'],     # Лучшая точность на тесте
-    test_best_epoch['epoch']    # Лучшая эпоха на тесте
-)
+    return (
+        sum(train_times) / epochs,  # Среднее время обучения
+        sum(val_times) / epochs,    # Среднее время валидации
+        test_best_epoch['loss'],    # Лучшие потери на тесте
+        test_best_epoch['acc'],     # Лучшая точность на тесте
+        test_best_epoch['epoch']    # Лучшая эпоха на тесте
+    )
