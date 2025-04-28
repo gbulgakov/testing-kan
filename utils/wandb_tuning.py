@@ -29,7 +29,7 @@ def wandb_tuning(project_name, dataset_name,
             config=sweep_config
         ) as run:
             config = wandb.config
-            _, backbone, bins, embeddings_kwargs, loss_fn, k = model_init_preparation(
+            _, layer_kwargs, backbone, bins, embeddings_kwargs, loss_fn, k = model_init_preparation(
                 config=config,
                 dataset=dataset,
                 model_name=model_name,
@@ -43,7 +43,8 @@ def wandb_tuning(project_name, dataset_name,
                 bins=bins,
                 num_embeddings=embeddings_kwargs,
                 arch_type=arch_type,
-                k=k
+                k=k,
+                **layer_kwargs
             )
             train(
                 epochs=num_epochs,
