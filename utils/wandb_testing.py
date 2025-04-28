@@ -122,5 +122,5 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         run.log(stats)
         stats['name'] = f'{model_name}_{emb_name}_{optim_name}'
         
-    keys = ['model', 'mean_test_acc', 'std_test_acc', 'mean_test_loss', 'std_test_loss', 'mean_test_time', 'mean_train_time']
+    keys = ['model', 'mean_test_acc', 'std_test_acc', 'mean_test_loss', 'std_test_loss', 'mean_avl_time', 'mean_train_time']
     return {key : stats[key] for key in keys} # чисто технически для удобства
