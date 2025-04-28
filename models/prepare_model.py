@@ -72,7 +72,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     out_features = num_classes
     backbone = None
     layer_widths = None
-    layer_kwargs = None # для перехода к ансамблям
+    layer_kwargs = {} # для перехода к ансамблям
  
     if model_name == 'kan' or model_name == 'small_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
