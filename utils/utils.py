@@ -230,7 +230,7 @@ def get_test_config(task_type, sweep_name):
         metric = {'name' : 'val_best_acc', 'goal' : 'maximize'}
     params = {
         'seed' : {
-            'values' : [i for i in range(10)]
+            'values' : [i for i in range(1)]
         }
     }
     config = {
