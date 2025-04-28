@@ -72,27 +72,44 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     out_features = num_classes
     backbone = None
     layer_widths = None
+    layer_kwargs = None # для перехода к ансамблям
  
     if model_name == 'kan' or model_name == 'small_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
-        backbone = KAN(layer_widths, grid_size=config['grid_size'], batch_norm=False)
+        layer_kwargs = {
+            'grid_size' : config['grid_size'],
+            'batch_norm' : False
+        }
+        backbone = KAN(layer_widths, **layer_kwargs)
     
     elif model_name == 'batch_norm_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
-        backbone = KAN(layer_widths, grid_size=config['grid_size'], batch_norm=True)
+        layer_kwargs = {
+            'grid_size' : config['grid_size'],
+            'batch_norm' : True
+        }
+        backbone = KAN(layer_widths, **layer_kwargs)
 
     elif model_name == 'fast_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
-        backbone = FastKAN(layer_widths, num_grids=config['grid_size'])
+        layer_kwargs = {
+            'num_grids' : config['grid_size']
+        }
+        backbone = FastKAN(layer_widths, **layer_kwargs)
 
     elif model_name == 'cheby_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
-        backbone = ChebyKAN(layers_hidden=layer_widths, degree=config['degree'])
+        layer_kwargs = {
+            'degree' : config['degree']
+        }
+        backbone = ChebyKAN(layers_hidden=layer_widths, **layer_kwargs)
 
     elif model_name == 'mlp':
         layer_widths = [in_features] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [out_features]
-        dropout = (config['dropout'] if config['use_dropout'] else 0)
-        backbone = MLP(layer_widths, dropout)
+        layer_kwargs = {
+            'dropout' : (config['dropout'] if config['use_dropout'] else 0)
+        }
+        backbone = MLP(layer_widths, **layer_kwargs)
         
     # ниже MLP и KAN соединены последовательно с шириной первого/последнего KAN слоя
     elif model_name == 'mlp_kan':
@@ -159,5 +176,5 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     if arch_type != 'plain':
         k = 16 #сюда можно добавить тюнинг через config
         
-    return layer_widths, backbone, bins, num_embeddings, loss_fn, k
+    return layer_widths, layer_kwargs, backbone, bins, num_embeddings, loss_fn, k
     
