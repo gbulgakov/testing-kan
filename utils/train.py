@@ -83,8 +83,8 @@ def apply_model(batch_data: dict, model) -> torch.Tensor:
     )
 
 def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
-    for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
-        dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
+    # for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
+    #     dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -98,12 +98,12 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     start_time = time.time()
     
     loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
-    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device=device)
+    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device='cpu') # это индексы
 
     for batch_indices in batches:
         # для удобства
         batch_data = {
-            key: dataset['train'][key][batch_indices]
+            key: dataset['train'][key][batch_indices].to(device)
             for key in dataset['train'].keys()
         }
 
@@ -146,8 +146,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
 def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
-    for key, tensor in dataset[part].items():
-        dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
+    # for key, tensor in dataset[part].items():
+    #     dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
     model.eval()
     model.to(device)
     val_loss = 0.0
@@ -160,7 +160,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
     
-    batches = get_batches_indices(model, model_name, part, batch_size, val_size, device)
+    batches = get_batches_indices(model, model_name, part, batch_size, val_size, device='cpu') # это индексы
     loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
 
     # мб стоит оптимизировать
@@ -172,7 +172,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
         for batch_indices in batches:
             # для удобства
             batch_data = {
-                key: dataset[part][key][batch_indices]
+                key: dataset[part][key][batch_indices].to(device)
                 for key in dataset[part].keys()
             }
 
