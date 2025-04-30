@@ -9,7 +9,7 @@ import math
 
 import torch
 
-from muon import zeropower_via_newtonschulz5
+from optimizers.muon import zeropower_via_newtonschulz5
 
 
 def exists(val):
