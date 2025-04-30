@@ -9,11 +9,15 @@ import json
 import torch
 import numpy as np
 from optimizers.ademamix import AdEMAMix
+from optimizers.muon import Muon
+from optimizers.mars import Mars
 
 # удобно для масшатбирования
 OPTIMIZERS = { 
               'adamw' : torch.optim.AdamW,
-              'ademamix' : AdEMAMix 
+              'ademamix' : AdEMAMix,
+              'mars' : Mars,
+              'muon' : Muon
              }
 
 def seed_everything(seed=0):
