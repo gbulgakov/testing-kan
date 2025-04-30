@@ -10,14 +10,14 @@ import torch
 import numpy as np
 from optimizers.ademamix import AdEMAMix
 from optimizers.muon import Muon
-from optimizers.mars import Mars
+from optimizers.mars import MARS
 
 # удобно для масшатбирования
 OPTIMIZERS = { 
               'adamw' : torch.optim.AdamW,
               'ademamix' : AdEMAMix,
               'mars' : Mars,
-              'muon' : Muon
+              'muon' : MARS
              }
 
 def seed_everything(seed=0):
