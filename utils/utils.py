@@ -16,8 +16,8 @@ from optimizers.mars import MARS
 OPTIMIZERS = { 
               'adamw' : torch.optim.AdamW,
               'ademamix' : AdEMAMix,
-              'mars' : Mars,
-              'muon' : MARS
+              'mars' : MARS,
+              'muon' : Muon
              }
 
 def seed_everything(seed=0):
