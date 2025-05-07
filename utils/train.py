@@ -5,10 +5,11 @@ import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
+import math
 import wandb
 # import delu пока 
 
-from utils.utils import count_parameters, compare_epochs
+from utils.utils import count_parameters
 
 # Словарь размеров батчей для разных датасетов
 BATCH_SIZES = {
@@ -83,8 +84,8 @@ def apply_model(batch_data: dict, model) -> torch.Tensor:
     )
 
 def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
-    # for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
-    #     dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
+    for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
+        dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -98,12 +99,12 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     start_time = time.time()
     
     loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
-    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device='cpu') # это индексы
+    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device=device)
 
     for batch_indices in batches:
         # для удобства
         batch_data = {
-            key: dataset['train'][key][batch_indices].to(device)
+            key: dataset['train'][key][batch_indices]
             for key in dataset['train'].keys()
         }
 
@@ -126,10 +127,11 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
             y_true = batch_data['y'] # (B, k)
         
         
-        if task_type == 'binclass' or task_type == 'regression':
-            pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
-        else:
+        n_bound = 1 if model.share_training_batches else 2
+        if output.dim() > n_bound:
             pred.append(output.argmax(1)) # if multiclass then -> argmax over classes (pred (B, k) or (B))
+        else:
+            pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
         gt.append(y_true)
     scheduler.step()
 
@@ -146,8 +148,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
 def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
-    # for key, tensor in dataset[part].items():
-    #     dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
+    for key, tensor in dataset[part].items():
+        dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
     model.eval()
     model.to(device)
     val_loss = 0.0
@@ -160,7 +162,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
     
-    batches = get_batches_indices(model, model_name, part, batch_size, val_size, device='cpu') # это индексы
+    batches = get_batches_indices(model, model_name, part, batch_size, val_size, device)
     loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
 
     # мб стоит оптимизировать
@@ -172,7 +174,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
         for batch_indices in batches:
             # для удобства
             batch_data = {
-                key: dataset[part][key][batch_indices].to(device)
+                key: dataset[part][key][batch_indices]
                 for key in dataset[part].keys()
             }
 
@@ -181,15 +183,13 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
             val_loss += loss_fn(output, batch_data['y']).item()
             
             output = output.mean(dim=1) # (B, n_out) or (B)
-
-            #not needed for regression
-            if task_type == 'binclass' or task_type == 'regression':
+            
+            if output.dim() > 1:
+                pred.append(output.argmax(1)) 
+                #output.argmax(1) -> (B)
+            else:
                 pred.append(output >= 0.5)
                 #output >= 0.5 -> (B)
-            else:
-                pred.append(output.argmax(1))  #multiclass
-                #output.argmax(1) -> (B)
-
             gt.append(batch_data['y'])
         end_time = time.time()
         val_time = end_time - start_time
@@ -204,7 +204,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
 def train(
     epochs, model, model_name, arch_type,
     device, dataset, base_loss_fn,  
-    optimizer
+    optimizer, patience
 ):
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
     model.to(device)
@@ -215,76 +215,59 @@ def train(
     # приведение к long можно сделать 1 раз, а не на каждой эпохе
     if task_type == 'multiclass':
         dataset['train']['y'] = dataset['train']['y'].long()
+    if task_type == 'regression':
+        best = {
+            'val': +math.inf,
+            'epoch': -1,
+        }
+    else:
+        best = {
+            'val': -math.inf,
+            'epoch': -1,
+        }
+        
 
     train_times = []
-    val_times = [] # времена инференса можно замерять и на val!
-
-    val_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
-    test_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
-
+    val_times = []
+    remaining_patience = patience
     for epoch in tqdm(range(epochs), desc = f'{model_name}_{arch_type} on {dataset_name}'):
         train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
-
-        # тестируем и валидируем
         val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
-        test_loss, test_acc, test_time = validate(model, device, dataset, base_loss_fn, 'test', model_name, arch_type)
- 
-        # логируем
-        logs = {
+
+        if task_type == 'regression' and val_loss < best['val']: #чем меньше лосс, тем лучше
+            best = {'val': val_loss,'epoch': epoch}
+            remaining_patience = patience
+        elif task_type != 'regression' and val_acc > best['val']: #чем больше acc, тем лучше
+            best = {'val': val_acc, 'epoch': epoch}
+            remaining_patience = patience
+        else:
+            remaining_patience -= 1
+        if remaining_patience < 0:
+            break
+
+         
+        wandb.log({
             'epoch' : epoch,
             'train_loss' : train_loss,
+            'train_acc' : train_acc,
             'val_loss' : val_loss,
-            'test_loss' : test_loss,
+            'val_acc' : val_acc,
             'lr' : scheduler.get_last_lr()[0]
-        }
-        if task_type != 'regression':
-            logs.update({
-                'train_acc' : train_acc,
-                'val_acc' : val_acc,
-                'test_acc' : test_acc
-            })
-        wandb.log(logs)
+        })
         train_times.append(train_time)
         val_times.append(val_time)
-
-
-        # обновляем лучшие эпохи для val/test
-        val_epoch = {'epoch' : epoch, 'loss' : val_loss, 'acc' : val_acc}
-        test_epoch = {'epoch' : epoch, 'loss' : test_loss, 'acc' : test_acc}
-        if compare_epochs(task_type, val_epoch, val_best_epoch):
-            val_best_epoch = val_epoch
-        if compare_epochs(task_type, test_epoch, test_best_epoch):
-            test_best_epoch = test_epoch
 
     # размерность входа backbone
     in_features = dataset['train']['X_num'].shape[1]  # Количество числовых признаков
     if 'X_cat' in dataset['train']:
         in_features += dataset['train']['X_cat'].shape[1]  # Добавляем категориальные признаки
 
-    final_logs = {
+    
+    wandb.log({
         'train_epoch_time' : sum(train_times) / epochs,
         'val_epoch_time' : sum(val_times) / epochs,
         'num_params' : count_parameters(model),
         'in_features' : in_features,
-        'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes']),
-        'val_best_epoch' : val_best_epoch['epoch'],
-        'val_best_loss' : val_best_epoch['loss'],
-        'test_best_epoch' : test_best_epoch['epoch'],
-        'test_best_loss' : test_best_epoch['loss']
+        'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes'])
         # ширины и так будут залоггированы
-    }
-    if task_type != 'regression':
-        final_logs.update({
-            'val_best_acc' : val_best_epoch['acc'],
-            'test_best_acc' : test_best_epoch['acc']
-        })
-    
-    wandb.log(final_logs)
-
-    return (
-        sum(train_times) / epochs,  # Среднее время обучения
-        sum(val_times) / epochs,    # Среднее время валидации
-        test_best_epoch['loss'],    # Лучшие потери на тесте
-        test_best_epoch['acc'],     # Лучшая точность на тесте
-        test_best_epoch['epoch']    # Лучшая эпоха на тесте
-    )
+    })
