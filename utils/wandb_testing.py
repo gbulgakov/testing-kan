@@ -11,9 +11,8 @@ from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 from models.tabm_reference import Model
 
 
-def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10):
+def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10, patience=5):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    task_type = dataset['info']['task_type']
     num_cont_cols = dataset['train']['X_num'].shape[1]
     X_cat = dataset['train'].get('X_cat', None)
     num_cat_cols = (X_cat.shape[1] if X_cat != None else 0)
@@ -23,9 +22,8 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
     # подготовка логирования
     test_accuracies = []
     test_losses = []
-    val_times = []
+    test_times = []
     train_times = []
-    best_epochs = []
 
     testing_config = get_test_config(dataset['info']['task_type'], 
                                      f'testing {model_name}_{arch_type}_{emb_name}_{optim_name} on {dataset_name}')
@@ -34,14 +32,13 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         with wandb.init(
             project=f'{project_name}',
             group=f'dataset_{dataset_name}',
-            tags=[f'model_{model_name}', f'arch_{arch_type}', f'emb_{emb_name}', 
-                  f'optim_{optim_name}', f'dataset_{dataset_name}', 'testing'],
+            tags=[f'model_{model_name}', f'emb_{emb_name}', f'optim_{optim_name}', f'dataset_{dataset_name}', 'testing'],
             config=testing_config
         ) as run:
             config = wandb.config
             # seed + подготовка модели
             seed_everything(config['seed'])
-            _, layer_kwargs, backbone, bins, embeddings_kwargs, loss_fn, k = model_init_preparation(
+            _, backbone, bins, embeddings_kwargs, loss_fn, k = model_init_preparation(
                 config=best_params,
                 dataset=dataset,
                 model_name=model_name,
@@ -55,10 +52,11 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 bins=bins,
                 num_embeddings=embeddings_kwargs,
                 arch_type=arch_type,
-                k=k,
-                **layer_kwargs
+                k=k
             )
-            train_time, val_time, test_best_loss, test_best_acc, test_best_epoch = train(
+
+            start_time = time.time()
+            train(
                 epochs=num_epochs,
                 model=model,
                 model_name=f'{model_name}_{arch_type}_{emb_name}_{optim_name}',
@@ -66,29 +64,27 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 device=device,
                 dataset=dataset,
                 base_loss_fn=loss_fn,
-                optimizer=get_optimizer(optim_name, model.parameters(), best_params)
+                optimizer=get_optimizer(optim_name, model.parameters(), best_params),
+                patience=patience
             )
+            end_time = time.time()
+            test_loss, test_acc, test_time = validate(model, device, dataset, loss_fn, 'test', model_name, arch_type)
             # Логируем результаты для каждого сида
-            logs = {
-                'test_best_loss': test_best_loss,
-                'test_best_epoch' : test_best_epoch,
-                'train_time': train_time,
-                'val_time': val_time,
+            run.log({
+                'test_loss': test_loss,
+                'test_acc': test_acc,
+                'full_train_time': end_time - start_time,
+                'test_time': test_time,
                 'seed': config['seed']
-            }
+            })
 
-            if task_type != 'regression':
-                logs.update({'test_best_acc' : test_best_acc})
-            
-            run.log(logs)
-            test_accuracies.append(test_best_acc)
+            test_accuracies.append(test_acc)
             if dataset['info']['task_type'] == 'regression':
-                test_losses.append(np.sqrt(test_best_loss)) # переходим к RMSE
+                test_losses.append(np.sqrt(test_loss)) # переходим к RMSE и делаем обратное преобразование
             else:
-                test_losses.append(test_best_loss)
-            val_times.append(val_time)
-            train_times.append(train_time)
-            best_epochs.append(test_best_epoch)
+                test_losses.append(test_loss)
+            test_times.append(test_time)
+            train_times.append(end_time - start_time)
 
     test_id = wandb.sweep(sweep=testing_config,
                            project=f'{project_name}',
@@ -100,35 +96,25 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         project=f"{project_name}",
         group=f'dataset_{dataset_name}',
         name="aggregated_results",
-        tags=[f'model_{model_name}', f'arch_{arch_type}', f'emb_{emb_name}', f'optim_{optim_name}', f'dataset_{dataset_name}', 'testing'],
+        tags=[f'model_{model_name}', f'emb_{emb_name}', f'optim_{optim_name}', f'dataset_{dataset_name}', 'testing'],
         config=best_params
     ) as run:
         stats = {
-            'model' : f'{model_name}_{arch_type}_{emb_name}_{optim_name}',
+            'model' : f'{model_name}_{emb_name}_{optim_name}',
+            'mean_test_acc': np.mean(test_accuracies),
+            'std_test_acc': np.std(test_accuracies),
             'mean_test_loss': np.mean(test_losses),
             'std_test_loss': np.std(test_losses),
-            'mean_val_time': np.mean(val_times),
+            'mean_test_time': np.mean(test_times),
             'mean_train_time': np.mean(train_times),
-            'mean_best_epoch' : np.mean(best_epochs),
-            'std_best_epoch' : np.std(best_epochs),
-            'all_test_losses' : test_losses,
-            'all_val_times' : val_times,
-            'all_train_times' : train_times,
-            'all_best_epochs' : best_epochs
+            'all_test_accs': test_accuracies,
+            'all_test_losses': test_losses,
+            'all_test_times': test_times,
+            'all_train_times': train_times
         }
-        if task_type != 'regression':
-            stats.update({
-                'mean_test_acc': np.mean(test_accuracies),
-                'std_test_acc': np.std(test_accuracies),
-                'all_test_accs' : test_accuracies
-            })
         
         run.log(stats)
         stats['name'] = f'{model_name}_{emb_name}_{optim_name}'
-    
-    keys = (
-        ['model'] 
-        + (['mean_test_acc', 'std_test_acc'] if task_type != 'regression' else [])
-        + ['mean_test_loss', 'std_test_loss', 'mean_val_time', 'mean_train_time']
-    )
+        
+    keys = ['model', 'mean_test_acc', 'std_test_acc', 'mean_test_loss', 'std_test_loss', 'mean_test_time', 'mean_train_time']
     return {key : stats[key] for key in keys} # чисто технически для удобства
