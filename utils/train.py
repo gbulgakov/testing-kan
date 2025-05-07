@@ -204,7 +204,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
 def train(
     epochs, model, model_name, arch_type,
     device, dataset, base_loss_fn,  
-    optimizer
+    optimizer, patience=5
 ):
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
     model.to(device)
@@ -222,6 +222,7 @@ def train(
     val_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
     test_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
 
+    remaining_patience = patience
     for epoch in tqdm(range(epochs), desc = f'{model_name}_{arch_type} on {dataset_name}'):
         train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
 
@@ -253,6 +254,11 @@ def train(
         test_epoch = {'epoch' : epoch, 'loss' : test_loss, 'acc' : test_acc}
         if compare_epochs(task_type, val_epoch, val_best_epoch):
             val_best_epoch = val_epoch
+            remaining_patience = patience
+        else:
+            remaining_patience -= 1
+        if remaining_patience < 0:
+            break
         if compare_epochs(task_type, test_epoch, test_best_epoch):
             test_best_epoch = test_epoch
 

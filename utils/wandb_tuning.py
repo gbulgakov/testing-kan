@@ -11,7 +11,7 @@ from models.tabm_reference import Model
 
 def wandb_tuning(project_name, dataset_name, 
                  model_name, arch_type, emb_name, optim_name, 
-                 dataset, num_epochs=10, num_trials=30):
+                 dataset, num_epochs=10, num_trials=30, patience=5):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset_info = dataset['info']
     num_cont_cols = dataset['train']['X_num'].shape[1]
@@ -55,6 +55,7 @@ def wandb_tuning(project_name, dataset_name,
                 dataset=dataset,
                 base_loss_fn=loss_fn,
                 optimizer=get_optimizer(optim_name, model.parameters(), config),
+                patience=patience
             )
     sweep_config = get_sweep_config(model_name, emb_name, dataset_info['task_type'], 
                                     f'tuning {model_name}_{arch_type}_{emb_name}_{optim_name} on {dataset_name}')

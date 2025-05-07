@@ -11,7 +11,7 @@ from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 from models.tabm_reference import Model
 
 
-def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10):
+def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10, patience=5):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     task_type = dataset['info']['task_type']
     num_cont_cols = dataset['train']['X_num'].shape[1]
@@ -66,7 +66,8 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 device=device,
                 dataset=dataset,
                 base_loss_fn=loss_fn,
-                optimizer=get_optimizer(optim_name, model.parameters(), best_params)
+                optimizer=get_optimizer(optim_name, model.parameters(), best_params),
+                patience=patience
             )
             # Логируем результаты для каждого сида
             logs = {
