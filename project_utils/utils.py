@@ -7,6 +7,7 @@ import os
 import pickle
 import json
 import torch
+from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 from optimizers.ademamix import AdEMAMix
 from optimizers.muon import Muon
@@ -19,6 +20,7 @@ OPTIMIZERS = {
               'mars' : MARS,
               'muon' : Muon
              }
+
 
 def seed_everything(seed=0):
     import random
@@ -41,102 +43,7 @@ def compare_epochs(task_type, epoch_dict1, epoch_dict2):
         return epoch_dict1['loss'] < epoch_dict2['loss']
     else:
         return epoch_dict1['acc'] > epoch_dict2['acc']
-
-# добавил простейший препроцессинг
-def load_dataset(name, zip_path=None):
-    if zip_path is None:
-        zip_path = f'/kaggle/working/{name}.zip'
-    data = {'train': {}, 'val': {}, 'test': {}}
     
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        # Создаем временную директорию для распаковки
-        temp_dir = Path(f'{name}_data')
-        zip_ref.extractall(temp_dir)
-        
-        # Загружаем метаданные
-        with open(temp_dir / f'{name}' / 'info.json') as f:
-            data['info'] = json.load(f)
-
-        # Для категориальных фич
-        one_hot_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-        
-        # Для числовых фич и меток (регрессия)
-        scaler = StandardScaler()
-        scaler_y = StandardScaler()
-        
-        # Загружаем все .npy файлы
-        for part in ['train', 'val', 'test']:
-            for data_type in ['X_num', 'X_cat', 'y']:
-                file_path = temp_dir / f'{name}' / f'{data_type}_{part}.npy'
-                if file_path.exists():
-                    data[part][data_type] = np.load(file_path, allow_pickle=True)
-
-        # Обучение OHE на train и кодирование категориальных признаков
-        for part in ['train', 'val', 'test']:
-            cat_path = temp_dir / f'{name}' / f'X_cat_{part}.npy'
-            if cat_path.exists():
-                if part == 'train':
-                    one_hot_encoder.fit(data['train']['X_cat']) 
-                data[part]['X_cat'] = one_hot_encoder.transform(data[part]['X_cat'])
-
-        # Обучение StandardScaler на train и стандартизация числовых признаков
-        for part in ['train', 'val', 'test']:
-            num_path = temp_dir / f'{name}' / f'X_num_{part}.npy'
-            if num_path.exists():
-                if part == 'train':
-                    scaler.fit(data['train']['X_num'])  # Обучаем scaler только на train
-                data[part]['X_num'] = scaler.transform(data[part]['X_num'])
-
-        # Для регрессии надо стандартизировать y
-        if data['info']['task_type'] == 'regression':
-            for part in ['train', 'val', 'test']:
-                y_path = temp_dir / f'{name}' / f'y_{part}.npy'
-                if y_path.exists():
-                    if part == 'train':
-                        # Преобразуем в 2D для StandardScaler, сохраняя размерность
-                        y_reshaped = data['train']['y'].reshape(-1, 1)
-                        scaler_y.fit(y_reshaped)
-                    
-                    # Преобразуем, сохраняя оригинальную размерность
-                    y_reshaped = data[part]['y'].reshape(-1, 1)
-                    data[part]['y'] = scaler_y.transform(y_reshaped).reshape(data[part]['y'].shape)
-            data['scaler_y'] = scaler_y
-
-        # Переводим данные в тензоры
-        for part in ['train', 'val', 'test']:
-            for data_type in data[part].keys():
-                data[part][data_type] = torch.tensor(data[part][data_type], dtype=torch.float)
-        
-        # Удаляем временную директорию
-        shutil.rmtree(temp_dir)
-    
-    return data
-
-def write_results(pkl_path, model_name, emb_name, optim_name,
-                  layers, num_epochs, num_params, best_params, 
-                  test_accuracies, test_loss, train_times, 
-                  test_times, train_loss_history, val_loss_history):
-    best_params['pkl_path'] = pkl_path
-    best_params['layers'] = layers
-    best_params['num_epochs'] = num_epochs
-    best_params['num_params'] = num_params
-    best_params['test_accuracies'] = test_accuracies
-    best_params['test_loss'] = test_loss
-    best_params['train_times'] = train_times
-    best_params['test_times'] = test_times # т.к. на этапе тестирования нет обучения, то это по сути время инференса
-    best_params['train_loss_history'] = train_loss_history
-    best_params['val_loss_history'] = val_loss_history
-
-    if os.path.exists(pkl_path):
-        with open(pkl_path, 'rb') as f:
-            data = pickle.load(f)
-        data[f'{optim_name}_{emb_name}_{model_name}'] = best_params
-        
-    else:
-        data = {f'{optim_name}_{emb_name}_{model_name}' : best_params}    
-    
-    with open(pkl_path, 'wb') as file:
-        pickle.dump(data, file)
 
 def get_sweep_config(model_name, emb_name, task_type, sweep_name):
     metric = {}
