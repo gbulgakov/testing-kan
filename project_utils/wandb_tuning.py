@@ -3,8 +3,8 @@ from typing import Dict, Any
 import torch
 import wandb
 
-from utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
-from utils.train import train, validate
+from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
+from project_utils.train import train, validate
 from models.prepare_model import model_init_preparation, ModelWithEmbedding
 from models.tabm_reference import Model
 
@@ -46,6 +46,7 @@ def wandb_tuning(project_name, dataset_name,
                 k=k,
                 **layer_kwargs
             )
+            print(len(list(model.parameters())))
             train(
                 epochs=num_epochs,
                 model=model,

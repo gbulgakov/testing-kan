@@ -144,8 +144,6 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         metric = {'name' : 'val_best_loss', 'goal' : 'minimize'}
     else:
         metric = {'name' : 'val_best_acc', 'goal' : 'maximize'}
-    
-    max_log_width = (7 if model_name == 'kan' else 11)
     params = {
         'lr' : {
             'distribution' : 'log_uniform_values',
@@ -158,66 +156,20 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
             'max' : 5e-2
         }
     }
-
-    if model_name == 'mlp':
+    if model_name == 'kan':
         params.update({
-            'mlp_layers' : {'values' : [1, 2, 3, 4]}, # скрытые слои
-            'mlp_width' : {'values' : [2 ** i for i in range(11)]},
-            'use_dropout' : {'values' : [True, False]},
-            'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
-        })
-    elif model_name == 'kan' or model_name == 'batch_norm_kan' or model_name == 'update_grid_kan':
-        params.update({
-            'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
-            'kan_width' : {'values' : [2 ** i for i in range(7)]},
+            'kan_layers' : {'values' : [1, 2, 3, 4, 5, 6]},   # грубый тюнинг
+            'kan_width' : {'values' : [2 ** i for i in range(8)]},
             'grid_size' : {'values' : [i for i in range(3, 30, 2)]}
-        })
-    elif model_name == 'small_kan': # легкий KAN
-        params.update({
-            'kan_layers' : {'values' : [1, 2]},   # скрытые слои
-            'kan_width' : {'values' : [4, 8, 12, 16, 20, 24]},
-            'grid_size' : {'values' : [i for i in range(3, 13, 2)]},
-        })
-    elif model_name == 'cheby_kan': # Chebyshev-KAN
-        params.update({
-            'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
-            'kan_width' : {'values' : [2 ** i for i in range(7)]},
-            'degree' : {'values' : [i for i in range(1, 13)]} # попробуем такие степени
         })
     elif model_name == 'fast_kan': # RBF-KAN
         params.update({
-            'kan_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
-            'kan_width' : {'values' : [2 ** i for i in range(1, 7)]}, #
-            'grid_size' : {'values' : [i for i in range(4, 30, 2)]} # пусть будут четные
+            'kan_layers' : {'values' : [1, 2, 3, 4, 5, 6]},   # скрытые слои
+            'kan_width' : {'values' : [2 ** i for i in range(1, 8)]}, 
+            'grid_size' : {'values' : [i for i in range(4, 40, 2)]} # пусть будут четные
         })
-    elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
-        params.update({
-            'kan_layers' : {'values' : [1, 2, 3]}, 
-            'kan_width' : {'values' : [2 ** i for i in range(6)]},
-            'grid_size' : {'values' : [i for i in range(3, 30, 2)]},
-            'mlp_layers' : {'values' : [1, 2, 3]},
-            'mlp_width' : {'values' : [2 ** i for i in range(10)]},
-            'use_dropout' : {'values' : [True, False],
-                             'probabilities' : [0.7, 0.3] # dropout вероятно нужен
-                            },
-            'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
-        })
-
-    if emb_name != 'none':
-        params.update({
-            'd_embedding' : {'values' : [2 ** i for i in range(1, 8)]}
-        })
-    if emb_name == 'periodic':
-        params.update({
-            'sigma' : {
-                'distribution' : 'log_uniform_values',
-                'min' : 0.01,
-                'max' : 100
-            }
-        })
-    
     config = {
-        'method' : ('bayes' if model_name not in ['mlp_kan', 'kan_mlp'] else 'random'),
+        'method' : 'random',
         'metric' : metric,
         'parameters' : params,
         'name' : sweep_name

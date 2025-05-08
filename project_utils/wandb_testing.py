@@ -5,8 +5,8 @@ import numpy as np
 import torch
 import wandb
 
-from utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
-from utils.train import train, validate
+from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
+from project_utils.train import train, validate
 from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 from models.tabm_reference import Model
 

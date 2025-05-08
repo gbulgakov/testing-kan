@@ -8,7 +8,7 @@ from tqdm import tqdm
 import wandb
 # import delu пока 
 
-from utils.utils import count_parameters, compare_epochs
+from project_utils.utils import count_parameters, compare_epochs
 
 # Словарь размеров батчей для разных датасетов
 BATCH_SIZES = {
@@ -69,7 +69,7 @@ amp_dtype = (
 )
 # Changing False to True will result in faster training on compatible hardware.
 amp_enabled = False and amp_dtype is not None
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda')
 @torch.autocast(device.type, enabled=amp_enabled, dtype=amp_dtype)  # type: ignore[code]
 def apply_model(batch_data: dict, model) -> torch.Tensor:
     '''Сюда поступает батч на нужном девайсе и на нужной части датасета'''
@@ -83,8 +83,8 @@ def apply_model(batch_data: dict, model) -> torch.Tensor:
     )
 
 def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
-    # for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
-    #     dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
+    for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
+        dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
@@ -98,7 +98,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     start_time = time.time()
     
     loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
-    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device='cpu') # это индексы
+    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device=device) # это индексы
 
     for batch_indices in batches:
         # для удобства
@@ -146,8 +146,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
 def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
-    # for key, tensor in dataset[part].items():
-    #     dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
+    for key, tensor in dataset[part].items():
+        dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
     model.eval()
     model.to(device)
     val_loss = 0.0
