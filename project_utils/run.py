@@ -17,6 +17,7 @@ from models.mlp import MLP
 from models.prepare_model import model_init_preparation, ModelWithEmbedding
 
 from project_utils import utils
+from project_utils import datasets
 from project_utils.tg_bot import send_telegram_file, send_telegram_message
 from project_utils.wandb_tuning import wandb_tuning
 from project_utils.wandb_testing import test_best_model
@@ -51,7 +52,7 @@ def run_single_dataset(project_name, dataset_name,
                        num_epochs, num_trials, patience):
     # dataset_type = dataset_info['type']
     zip_path = f'data/{dataset_name}.zip'
-    dataset = utils.load_dataset(dataset_name, zip_path)
+    dataset = datasets.load_dataset(dataset_name, zip_path)
     results = []
     pkl_logs = {}
 
@@ -109,8 +110,8 @@ def run_experiment(
 
 if __name__ == '__main__':
     run_experiment(
-        project_name='patience kan, fastkan testing',
-        dataset_names=['house', 'gesture', 'churn', 'california', 'adult', 'facebook', 'sberbank-housing', 'homesite-insurance'],
+        project_name='Random ablation study',
+        dataset_names=['sberbank-housing', 'homesite-insurance', 'facebook', 'house', 'gesture', 'churn', 'california', 'adult'],
         model_names=['kan', 'fast_kan'],
         emb_names=['none'],
         optim_names=['adamw'],
