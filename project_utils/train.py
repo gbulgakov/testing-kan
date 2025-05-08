@@ -23,24 +23,27 @@ BATCH_SIZES = {
     'santander': 1024,
     'covtype': 1024,
     'microsoft': 1024,
-    'eye': 128
+    'eye': 128,
+    'sberbank-housing' : 256,
+    'homesite-insurance' : 1024
 }
 
-def get_batches_indices(model, arch_type: str, part: str, batch_size: int, data_size, device) -> torch.Tensor:
-    if arch_type != 'plain' and part == 'train':
-        batches = (
-        torch.randperm(data_size, device=device).split(batch_size)
-        if model.share_training_batches
-        else [
-            x.transpose(0, 1).flatten()
-            for x in torch.rand((model.k, data_size), device=device)
-            .argsort(dim=1)
-            .split(batch_size, dim=1)
-        ]
-        )
-    else:
-        batches = torch.randperm(data_size, device=device).split(batch_size)
-    return batches
+
+# def get_batches_indices(model, arch_type: str, part: str, batch_size: int, data_size, device) -> torch.Tensor:
+#     if arch_type != 'plain' and part == 'train':
+#         batches = (
+#         torch.randperm(data_size, device=device).split(batch_size)
+#         if model.share_training_batches
+#         else [
+#             x.transpose(0, 1).flatten()
+#             for x in torch.rand((model.k, data_size), device=device)
+#             .argsort(dim=1)
+#             .split(batch_size, dim=1)
+#         ]
+#         )
+#     else:
+#         batches = torch.randperm(data_size, device=device).split(batch_size)
+#     return batches
 
 
 def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
@@ -83,12 +86,12 @@ def apply_model(batch_data: dict, model) -> torch.Tensor:
     )
 
 def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
-    for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
-        dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
+    # for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
+    #     dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
-    batch_size = BATCH_SIZES[dataset_name]
-    train_size = dataset['train']['X_num'].shape[0]
+    loader = dataset['train']
+    # train_size = dataset['train']['X_num'].shape[0]
 
     model.to(device)
     model.train()
@@ -98,14 +101,21 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     start_time = time.time()
     
     loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
-    batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device=device) # это индексы
+    # batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device=device) # это индексы
 
-    for batch_indices in batches:
-        # для удобства
-        batch_data = {
-            key: dataset['train'][key][batch_indices].to(device)
-            for key in dataset['train'].keys()
-        }
+    # for batch_indices in batches:
+    #     # для удобства
+    #     batch_data = {
+    #         key: dataset['train'][key][batch_indices].to(device)
+    #         for key in dataset['train'].keys()
+    #     }
+
+    for (X_num, X_cat, y) in loader:
+        X_num = X_num.to(device)
+        if X_cat is not None:
+            X_cat = X_cat.to(device)
+        y = y.to(device)
+        batch_data = {'X_num' : X_num, 'X_cat' : X_cat, 'y' : y}
 
         optimizer.zero_grad()
         
@@ -136,7 +146,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     end_time = time.time()
     epoch_time = end_time - start_time
 
-    num_batches = dataset['train']['y'].shape[0] // batch_size + 1
+    # num_batches = dataset['train']['y'].shape[0] // batch_size + 1
+    num_batches = len(loader)
     pred = torch.cat(pred)
     gt = torch.cat(gt) #(dataset_size, k) or (dataset_size)
     #accuracy is found as accuracy of mean prediction over k if model.share_training_batches==True
@@ -146,12 +157,13 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
 def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
-    for key, tensor in dataset[part].items():
-        dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
+    # for key, tensor in dataset[part].items():
+    #     dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
     model.eval()
     model.to(device)
     val_loss = 0.0
-    val_size = dataset['val']['X_num'].shape[0]
+    loader = dataset[part]
+    # val_size = dataset['val']['X_num'].shape[0]
 
     pred = []
     gt = [] # настоящие таргеты
@@ -160,7 +172,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     task_type = dataset['info']['task_type']
     batch_size = BATCH_SIZES[dataset_name]
     
-    batches = get_batches_indices(model, model_name, part, batch_size, val_size, device='cpu') # это индексы
+    # batches = get_batches_indices(model, model_name, part, batch_size, val_size, device='cpu') # это индексы
     loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
 
     # мб стоит оптимизировать
@@ -169,12 +181,18 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     
     with torch.no_grad():
         start_time = time.time()
-        for batch_indices in batches:
-            # для удобства
-            batch_data = {
-                key: dataset[part][key][batch_indices].to(device)
-                for key in dataset[part].keys()
-            }
+        # for batch_indices in batches:
+        #     # для удобства
+        #     batch_data = {
+        #         key: dataset[part][key][batch_indices].to(device)
+        #         for key in dataset[part].keys()
+        #     }
+        for (X_num, X_cat, y) in loader:
+            X_num = X_num.to(device)
+            if X_cat is not None:
+                X_cat = X_cat.to(device)
+            y = y.to(device)
+            batch_data = {'X_num' : X_num, 'X_cat' : X_cat, 'y' : y}
 
             output = apply_model(batch_data, model) # (B, k, n_out) or (B, k)
 
@@ -194,7 +212,8 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
         end_time = time.time()
         val_time = end_time - start_time
         
-    num_batches = dataset[part]['y'].shape[0] // batch_size + 1
+    # num_batches = dataset[part]['y'].shape[0] // batch_size + 1
+    num_batches = len(loader)
     pred = torch.cat(pred)
     gt = torch.cat(gt)
     val_accuracy = (pred == gt).float().mean().item()
@@ -210,11 +229,12 @@ def train(
     model.to(device)
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
-    batch_size = BATCH_SIZES[dataset_name]
+    # batch_size = BATCH_SIZES[dataset_name]
 
+    '''REMINDER: Это и так сделано в обработке датасетов'''
     # приведение к long можно сделать 1 раз, а не на каждой эпохе
-    if task_type == 'multiclass':
-        dataset['train']['y'] = dataset['train']['y'].long()
+    # if task_type == 'multiclass':
+    #     dataset['train']['y'] = dataset['train']['y'].long()
 
     train_times = []
     val_times = [] # времена инференса можно замерять и на val!
@@ -262,16 +282,17 @@ def train(
         if compare_epochs(task_type, test_epoch, test_best_epoch):
             test_best_epoch = test_epoch
 
+    '''REMINDER: Добавил фичей в info'''
     # размерность входа backbone
-    in_features = dataset['train']['X_num'].shape[1]  # Количество числовых признаков
-    if 'X_cat' in dataset['train']:
-        in_features += dataset['train']['X_cat'].shape[1]  # Добавляем категориальные признаки
+    # in_features = dataset['train']['X_num'].shape[1]  # Количество числовых признаков
+    # if 'X_cat' in dataset['train']:
+    #     in_features += dataset['train']['X_cat'].shape[1]  # Добавляем категориальные признаки
 
     final_logs = {
         'train_epoch_time' : sum(train_times) / epochs,
         'val_epoch_time' : sum(val_times) / epochs,
         'num_params' : count_parameters(model),
-        'in_features' : in_features,
+        'in_features' : dataset['info']['in_features'],
         'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes']),
         'val_best_epoch' : val_best_epoch['epoch'],
         'val_best_loss' : val_best_epoch['loss'],
