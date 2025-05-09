@@ -14,9 +14,11 @@ def wandb_tuning(project_name, dataset_name,
                  dataset, num_epochs=10, num_trials=30, patience=5):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset_info = dataset['info']
-    # num_cont_cols = dataset['train']['X_num'].shape[1]
-    # X_cat = dataset['train'].get('X_cat', None)
-    # num_cat_cols = (X_cat.shape[1] if X_cat != None else 0)]
+    '''
+    num_cont_cols = dataset['train']['X_num'].shape[1]
+    X_cat = dataset['train'].get('X_cat', None)
+    num_cat_cols = (X_cat.shape[1] if X_cat != None else 0)]
+    '''
     num_cont_cols = dataset_info['num_cont_cols']
     num_cat_cols = dataset_info['num_cat_cols']
     sweep_name = f'tuning {model_name}_{arch_type}_{emb_name}_{optim_name} on {dataset_name}'
