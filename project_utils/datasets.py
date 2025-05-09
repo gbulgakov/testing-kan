@@ -138,8 +138,10 @@ def load_dataset(name, zip_path=None, num_workers=4):
             
         # добавим полезную инфу
         data['info']['in_features'] = data['train']['X_num'].shape[1]
+        data['info']['num_cont_cols'] = data['train']['X_num'].shape[1]
         if 'X_cat' in data['train']:
             data['info']['in_features'] += data['train']['X_cat'].shape[1]
+            data['info']['num_cat_cols'] = data['train']['X_cat'].shape[1]
         
         # Удаляем временную директорию
         shutil.rmtree(temp_dir)
