@@ -14,9 +14,11 @@ from models.tabm_reference import Model
 def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10, patience=5):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     task_type = dataset['info']['task_type']
-    # num_cont_cols = dataset['train']['X_num'].shape[1]
-    # X_cat = dataset['train'].get('X_cat', None)
-    # num_cat_cols = (X_cat.shape[1] if X_cat != None else 0)
+    '''
+    num_cont_cols = dataset['train']['X_num'].shape[1]
+    X_cat = dataset['train'].get('X_cat', None)
+    num_cat_cols = (X_cat.shape[1] if X_cat != None else 0)
+    '''
     num_cont_cols = dataset['info']['num_cont_cols']
     num_cat_cols = dataset['info']['num_cat_cols']
     d_embedding = best_params.get('d_embedding', None)
