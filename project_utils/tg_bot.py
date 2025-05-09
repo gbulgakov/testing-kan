@@ -1,13 +1,13 @@
 import requests
 
-# from kaggle_secrets import UserSecretsClient
-# def get_tokens():
-#     secrets = UserSecretsClient()
-#     TELEGRAM_TOKEN = secrets.get_secret('TELEGRAM_TOKEN')
-#     GEORGY_ID = secrets.get_secret('GEORGY_ID')
-#     DANIL_ID = secrets.get_secret('DANIL_ID')
-#     return TELEGRAM_TOKEN, GEORGY_ID, DANIL_ID
-# TELEGRAM_TOKEN, GEORGY_ID, DANIL_ID = get_tokens()
+from kaggle_secrets import UserSecretsClient
+def get_tokens():
+    secrets = UserSecretsClient()
+    TELEGRAM_TOKEN = secrets.get_secret('TELEGRAM_TOKEN')
+    GEORGY_ID = secrets.get_secret('GEORGY_ID')
+    DANIL_ID = secrets.get_secret('DANIL_ID')
+    return TELEGRAM_TOKEN, GEORGY_ID, DANIL_ID
+TELEGRAM_TOKEN, GEORGY_ID, DANIL_ID = get_tokens()
 
 
 
