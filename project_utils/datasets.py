@@ -51,9 +51,9 @@ def get_dataloaders(dataset, num_workers=4):
         # проверяем наличие X_cat
         X_cat = dataset[part].get('X_cat', None)
         dataset_part = CustomTensorDataset(
-            X_num=torch.tensor(dataset[part]['X_num']),
+            X_num=dataset[part]['X_num'],
             X_cat=X_cat,
-            y=torch.tensor(dataset[part]['y'])
+            y=dataset[part]['y']
         )
 
         dataloaders[part] = DataLoader(
