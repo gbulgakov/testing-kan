@@ -57,10 +57,12 @@ class ModelWithEmbedding(nn.Module):
 # подготовка модели 
 def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     dataset_info = dataset['info']
-    num_cont_cols = dataset['train']['X_num'].shape[1]
-    num_cat_cols = 0
-    if dataset_info['n_cat_features'] > 0:
-        num_cat_cols = dataset['train']['X_cat'].shape[1]
+    # num_cont_cols = dataset['train']['X_num'].shape[1]
+    # num_cat_cols = 0
+    # if dataset_info['n_cat_features'] > 0:
+    #     num_cat_cols = dataset['train']['X_cat'].shape[1]
+    num_cont_cols = dataset_info['num_cont_cols']
+    num_cat_cols = dataset_info['num_cat_cols']
     num_classes = 1
     if dataset_info['task_type'] == 'multiclass':
         num_classes = dataset_info['n_classes']
