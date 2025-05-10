@@ -109,13 +109,15 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     #         key: dataset['train'][key][batch_indices].to(device)
     #         for key in dataset['train'].keys()
     #     }
-
     for (X_num, X_cat, y) in loader:
         X_num = X_num.to(device)
-        if X_cat is not None:
-            X_cat = X_cat.to(device)
+        X_cat = X_cat.to(device)
         y = y.to(device)
-        batch_data = {'X_num' : X_num, 'X_cat' : X_cat, 'y' : y}
+        batch_data = {
+            'X_num' : X_num, 
+            'X_cat' : X_cat if X_cat.size(1) > 0 else None, 
+            'y' : y
+        }
 
         optimizer.zero_grad()
         
@@ -189,10 +191,13 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
         #     }
         for (X_num, X_cat, y) in loader:
             X_num = X_num.to(device)
-            if X_cat is not None:
-                X_cat = X_cat.to(device)
+            X_cat = X_cat.to(device)
             y = y.to(device)
-            batch_data = {'X_num' : X_num, 'X_cat' : X_cat, 'y' : y}
+            batch_data = {
+                'X_num' : X_num, 
+                'X_cat' : X_cat if X_cat.size(1) > 0 else None, 
+                'y' : y
+            }
 
             output = apply_model(batch_data, model) # (B, k, n_out) or (B, k)
 

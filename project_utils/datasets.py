@@ -31,17 +31,14 @@ BATCH_SIZES = {
 class CustomTensorDataset(Dataset):
     def __init__(self, X_num, X_cat, y):
         self.X_num = X_num
-        self.X_cat = X_cat if X_cat is not None else None
+        self.X_cat = X_cat if X_cat is not None else torch.zeros((len(X_num), 0))
         self.y = y
 
     def __len__(self):
         return len(self.X_num)
 
     def __getitem__(self, idx):
-        if self.X_cat is not None:
-            return self.X_num[idx], self.X_cat[idx], self.y[idx]
-        else:
-            return self.X_num[idx], None, self.y[idx]
+        return self.X_num[idx], self.X_cat[idx], self.y[idx]
 
 # это для получения даталоадеров потом 
 def get_dataloaders(dataset, num_workers=4):
