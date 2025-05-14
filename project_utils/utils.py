@@ -75,6 +75,13 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
             'kan_width' : {'values' : [2 ** i for i in range(1, 8)]}, 
             'grid_size' : {'values' : [i for i in range(4, 40, 2)]} # пусть будут четные
         })
+    elif model_name == 'mlp':
+        params.update({
+            'mlp_layers' : {'values' : [1, 2, 3, 4]}, # скрытые слои
+            'mlp_width' : {'values' : [2 ** i for i in range(1, 11)]},
+            'use_dropout' : {'values' : [True, False], 'probabilities': [0.7, 0.3]},
+            'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
+        })
     config = {
         'method' : 'random',
         'metric' : metric,
