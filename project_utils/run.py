@@ -110,7 +110,7 @@ def run_experiment(
 
 if __name__ == '__main__':
     run_experiment(
-        project_name='Random ablation study',
+        project_name='Embeddings 2.0 on GPU',
         dataset_names=['gesture', 'house', 'california'],
         model_names=['mlp', 'small_kan', 'kan', 'fast_kan'],
         emb_names=['none'],
