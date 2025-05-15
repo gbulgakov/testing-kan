@@ -178,8 +178,8 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
 
     # мб стоит оптимизировать
-    # if task_type == 'multiclass':
-    #     dataset[part]['y'] = dataset[part]['y'].long()
+    if task_type == 'multiclass':
+        dataset[part]['y'] = dataset[part]['y'].long()
     
     with torch.no_grad():
         start_time = time.time()
