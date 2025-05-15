@@ -51,6 +51,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         metric = {'name' : 'val_best_loss', 'goal' : 'minimize'}
     else:
         metric = {'name' : 'val_best_acc', 'goal' : 'maximize'}
+    
     params = {
         'lr' : {
             'distribution' : 'log_uniform_values',
@@ -60,28 +61,70 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         'weight_decay' : {
             'distribution' : 'log_uniform_values',
             'min' : 1e-6,
-            'max' : 5e-2
+            'max' : 1e-2
         }
     }
-    if model_name == 'kan':
-        params.update({
-            'kan_layers' : {'values' : [1, 2, 3, 4, 5, 6]},   # грубый тюнинг
-            'kan_width' : {'values' : [2 ** i for i in range(8)]},
-            'grid_size' : {'values' : [i for i in range(3, 30, 2)]}
-        })
-    elif model_name == 'fast_kan': # RBF-KAN
-        params.update({
-            'kan_layers' : {'values' : [1, 2, 3, 4, 5, 6]},   # скрытые слои
-            'kan_width' : {'values' : [2 ** i for i in range(1, 8)]}, 
-            'grid_size' : {'values' : [i for i in range(4, 40, 2)]} # пусть будут четные
-        })
-    elif model_name == 'mlp':
+
+    if model_name == 'mlp':
         params.update({
             'mlp_layers' : {'values' : [1, 2, 3, 4]}, # скрытые слои
             'mlp_width' : {'values' : [2 ** i for i in range(1, 11)]},
-            'use_dropout' : {'values' : [True, False], 'probabilities': [0.7, 0.3]},
+            'use_dropout' : {
+                'values' : [True, False],
+                'probabilities' : [0.7, 0.3]             
+                },
             'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
         })
+    elif model_name == 'kan':
+        params.update({
+            'kan_layers' : {'values' : [1, 2, 3, 4, 5]},   # скрытые слои
+            'kan_width' : {'values' : [2 ** i for i in range(1, 8)]}, # 1 - 128
+            'grid_size' : {'values' : [i for i in range(3, 30, 2)]}
+        })
+    elif model_name == 'small_kan': # легкий KAN с пониманием параметров
+        params.update({
+            'kan_layers' : {'values' : [1, 2, 3]},   # скрытые слои
+            'kan_width' : {'values' : [16, 24, 32, 40, 48, 56, 64]},
+            'grid_size' : {'values' : [i for i in range(5, 17, 2)]},
+        })
+    elif model_name == 'fast_kan': # RBF-KAN
+        params.update({
+            'kan_layers' : {'values' : [1, 2, 3, 4, 5]},   # скрытые слои
+            'kan_width' : {'values' : [2 ** i for i in range(1, 8)]}, # 8 - 128
+            'grid_size' : {'values' : [i for i in range(6, 18, 2)]} # пусть будут четные
+        })
+    elif model_name == 'cheby_kan': # Chebyshev-KAN
+        params.update({
+            'kan_layers' : {'values' : [1, 2, 3, 4, 5]},   # скрытые слои
+            'kan_width' : {'values' : [2 ** i for i in range(1, 8)]},
+            'degree' : {'values' : [i for i in range(1, 15)]} # попробуем такие степени
+        })
+    # elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
+    #     params.update({
+    #         'kan_layers' : {'values' : [1, 2, 3]}, 
+    #         'kan_width' : {'values' : [2 ** i for i in range(6)]},
+    #         'grid_size' : {'values' : [i for i in range(3, 30, 2)]},
+    #         'mlp_layers' : {'values' : [1, 2, 3]},
+    #         'mlp_width' : {'values' : [2 ** i for i in range(10)]},
+    #         'use_dropout' : {'values' : [True, False],
+    #                          'probabilities' : [0.7, 0.3] # dropout вероятно нужен
+    #                         },
+    #         'dropout' : {'values' : [i / 100 for i in range(0, 55, 5)]}
+    #     })
+
+    if emb_name != 'none':
+        params.update({
+            'd_embedding' : {'values' : [2 ** i for i in range(1, 8)]}
+        })
+    if emb_name == 'periodic':
+        params.update({
+            'sigma' : {
+                'distribution' : 'log_uniform_values',
+                'min' : 0.01,
+                'max' : 100
+            }
+        })
+    
     config = {
         'method' : 'random',
         'metric' : metric,
@@ -89,6 +132,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         'name' : sweep_name
     }
     return config
+
 
 def get_test_config(task_type, sweep_name):
     metric = {} # чисто технический параметр
