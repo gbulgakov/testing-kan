@@ -25,7 +25,9 @@ BATCH_SIZES = {
     'microsoft': 1024,
     'eye': 128,
     'sberbank-housing' : 256,
-    'homesite-insurance' : 1024
+    'homesite-insurance' : 1024,
+    'homecredit-default' : 1024,
+    'ecom-offers' : 1024
 }
 
 
