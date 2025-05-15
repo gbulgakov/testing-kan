@@ -111,12 +111,12 @@ def run_experiment(
 if __name__ == '__main__':
     run_experiment(
         project_name='Random ablation study',
-        dataset_names=['sberbank-housing', 'homesite-insurance', 'facebook', 'house', 'gesture', 'churn', 'california', 'adult'],
-        model_names=['kan', 'fast_kan'],
+        dataset_names=['gesture', 'house', 'california'],
+        model_names=['mlp', 'small_kan', 'kan', 'fast_kan'],
         emb_names=['none'],
         optim_names=['adamw'],
         arch_types=['plain'],
         num_epochs=100,
-        num_trials=200,
+        num_trials=60,
         patience=5
     )
