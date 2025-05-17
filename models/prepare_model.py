@@ -130,10 +130,21 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
             MLP(mlp_layer_widths, dropout)
         )
         layer_widths = kan_layer_widths + mlp_layer_widths
-    
+
+    # для некоторых эмбеддингов нужны все данные
+    if emb_name not in ['none', 'periodic']:
+        loader = dataset['train']
+        X_num, Y = [], []
+        for x_num, x_cat, y in loader:
+            X_num.append(x_num)
+            Y.append(y)
+        X_num = torch.cat(X_num, dim=0)
+        Y = torch.cat(Y, dim=0)
+
+
     # создание эмбеддингов
     if emb_name == 'piecewiselinearq' or emb_name == 'PLE-Q':
-        bins = rtdl_num_embeddings.compute_bins(dataset['train']['X_num'], n_bins=config['d_embedding'])
+        bins = rtdl_num_embeddings.compute_bins(X=X_num, n_bins=config['d_embedding'])
         num_embeddings = {
             'type': 'PiecewiseLinearEmbeddings',
             'd_embedding': config['d_embedding'],
@@ -142,7 +153,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         }
     elif emb_name == 'piecewiselineart' or emb_name == 'PLE-T': # это мы  больше не используем
         tree_kwargs = {'min_samples_leaf': 64, 'min_impurity_decrease': 1e-4} #возможно стоит тюнить
-        bins = rtdl_num_embeddings.compute_bins(X=dataset['train']['X_num'], y=dataset['train']['y'], n_bins=config['d_embedding'], regression=True, tree_kwargs=tree_kwargs)
+        bins = rtdl_num_embeddings.compute_bins(X=X_num, y=Y, n_bins=config['d_embedding'], regression=True, tree_kwargs=tree_kwargs)
         num_embeddings = {
             'type': 'PiecewiseLinearEmbeddings',
             'd_embedding': config['d_embedding'],
