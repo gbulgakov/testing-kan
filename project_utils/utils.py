@@ -90,13 +90,13 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
     elif model_name == 'fast_kan': # RBF-KAN
         params.update({
             'kan_layers' : {'values' : [1, 2, 3, 4, 5]},   # скрытые слои
-            'kan_width' : {'values' : [2 ** i for i in range(1, 8)]}, # 8 - 128
+            'kan_width' : {'values' : [2 ** i for i in range(3, 8)]}, # 8 - 128
             'grid_size' : {'values' : [i for i in range(6, 18, 2)]} # пусть будут четные
         })
     elif model_name == 'cheby_kan': # Chebyshev-KAN
         params.update({
             'kan_layers' : {'values' : [1, 2, 3, 4, 5]},   # скрытые слои
-            'kan_width' : {'values' : [2 ** i for i in range(1, 8)]},
+            'kan_width' : {'values' : [2 ** i for i in range(3, 8)]},
             'degree' : {'values' : [i for i in range(1, 15)]} # попробуем такие степени
         })
     # elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
