@@ -117,6 +117,6 @@ if __name__ == '__main__':
         optim_names=['adamw'],
         arch_types=['plain'],
         num_epochs=100,
-        num_trials=60,
+        num_trials=70,
         patience=5
     )
