@@ -170,6 +170,18 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
                 'frequency_init_scale': config['sigma'],
                 'n_features': num_cont_cols
             }
+        elif emb_name == 'kan_emb':
+            num_embeddings = {
+                'type': 'KANLinear',
+                'in_features': num_cont_cols,
+                'out_features': config['d_embedding'],
+            }
+        elif emb_name == 'fast_kan_emb':
+            num_embeddings = {
+                'type': 'FastKANLayer',
+                'input_dim': num_cont_cols,
+                'out_features': config['d_embedding']
+            }
         else:
             num_embeddings = None
             

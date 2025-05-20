@@ -659,7 +659,9 @@ _CUSTOM_MODULES = {
         rtdl_num_embeddings.PiecewiseLinearEmbeddings,
         MLP,
         KAN,
+        KANLinear,
         FastKAN,
+        FastKANLayer,
         ChebyKAN,
     ]
 }
