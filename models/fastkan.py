@@ -20,9 +20,9 @@ import math
 from typing import *
 
 class SplineLinear(nn.Linear):
-    def __init__(self, in_features: int, out_features: int, init_scale: float = 0.1, **kw) -> None:
+    def __init__(self, input_dim: int, output_dim: int, init_scale: float = 0.1, **kw) -> None:
         self.init_scale = init_scale
-        super().__init__(in_features, out_features, bias=False, **kw)
+        super().__init__(input_dim, output_dim, bias=False, **kw)
 
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.weight, mean=0, std=self.init_scale)
@@ -60,8 +60,8 @@ class FastKANLayer(nn.Module):
         spline_weight_init_scale: float = 0.1,
     ) -> None:
         super().__init__()
-        self.in_features = input_dim # нужно для make_efficient_ensemble
-        self.out_features = output_dim # нужно для make_efficient_ensemble
+        self.input_dim = input_dim # нужно для make_efficient_ensemble
+        self.output_dim = output_dim # нужно для make_efficient_ensemble
         self.layernorm = None
         if use_layernorm:
             assert input_dim > 1, "Do not use layernorms on 1D inputs. Set `use_layernorm=False`."
@@ -113,6 +113,103 @@ class FastKANLayer(nn.Module):
         with torch.no_grad():
             y = (w * self.rbf(x.to(w.dtype))).sum(-1)
         return x, y
+    
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import math
+
+class RadialBasisFunction(nn.Module):
+    def __init__(self, grid_min: float, grid_max: float, num_grids: int):
+        super().__init__()
+        self.grid_min = grid_min
+        self.grid_max = grid_max
+        self.num_grids = num_grids
+        h = (grid_max - grid_min) / (num_grids - 1) if num_grids > 1 else 0.0
+        self.register_buffer("h", torch.tensor(h))
+        self.register_buffer("grid", torch.linspace(grid_min, grid_max, num_grids))
+
+    def forward(self, x: torch.Tensor):
+        x = x.unsqueeze(-1)  # [..., num_features, 1]
+        distances = (x - self.grid) / self.h  # [..., num_features, num_grids]
+        return torch.exp(-(distances ** 2))  # Gaussian RBF
+
+class _NFastKANLayer(nn.Module):
+    def __init__(
+        self,
+        n: int,
+        input_dim: int,
+        output_dim: int,
+        grid_min: float = -2.0,
+        grid_max: float = 2.0,
+        num_grids: int = 8,
+        use_base_update: bool = True,
+        use_layernorm: bool = False,
+        base_activation=F.silu,
+        spline_weight_init_scale: float = 0.1,
+    ):
+        super().__init__()
+        self.n = n
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.num_grids = num_grids
+        self.use_base_update = use_base_update
+        self.base_activation = base_activation
+
+        # Инициализация RBF для всех признаков
+        self.rbf = RadialBasisFunction(grid_min, grid_max, num_grids)
+        
+        # LayerNorm (по последнему измерению для каждого признака)
+        self.layernorm = None
+        if use_layernorm:
+            assert input_dim > 1, "LayerNorm requires input_dim > 1"
+            self.layernorm = nn.LayerNorm(input_dim)
+
+        # Параметры сплайнового преобразования
+        self.spline_weight = nn.Parameter(
+            torch.empty(n, output_dim, input_dim * num_grids)
+        )
+        nn.init.normal_(self.spline_weight, std=spline_weight_init_scale)
+
+        # Параметры базового преобразования
+        if self.use_base_update:
+            self.base_weight = nn.Parameter(torch.empty(n, output_dim, input_dim))
+            self.base_bias = nn.Parameter(torch.empty(n, output_dim))
+            nn.init.kaiming_uniform_(self.base_weight, a=math.sqrt(5))
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.base_weight)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.base_bias, -bound, bound)
+        else:
+            self.register_parameter("base_weight", None)
+            self.register_parameter("base_bias", None)
+
+    def forward(self, x: torch.Tensor, use_layernorm: bool = True) -> torch.Tensor:
+        if x.ndim == 2:
+            x = x.unsqueeze(-1)
+        # x: [batch_size, n, input_dim]
+        original_shape = x.shape
+        x = x.view(-1, self.n, self.input_dim)
+
+        # Применение LayerNorm
+        if self.layernorm is not None and use_layernorm:
+            x = self.layernorm(x)
+
+        # Сплайновое преобразование
+        rbf_out = self.rbf(x)  # [batch_size, n, input_dim, num_grids]
+        rbf_flat = rbf_out.view(*rbf_out.shape[:-2], -1)  # [batch_size, n, input_dim*num_grids]
+        spline_out = torch.einsum("bni,noi->bno", rbf_flat, self.spline_weight)
+
+        # Базовое преобразование
+        if self.use_base_update:
+            base = torch.einsum(
+                "bni,noi->bno",
+                self.base_activation(x),
+                self.base_weight,
+            )
+            spline_out = spline_out + base + self.base_bias.unsqueeze(0)
+
+        # Возвращаем результат с восстановленной формой
+        return spline_out.view(*original_shape[:-1], self.output_dim)
 
 
 class FastKAN(nn.Module):

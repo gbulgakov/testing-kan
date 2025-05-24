@@ -140,8 +140,6 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
             Y.append(y)
         X_num = torch.cat(X_num, dim=0)
         Y = torch.cat(Y, dim=0)
-
-
     # создание эмбеддингов
     if emb_name == 'piecewiselinearq' or emb_name == 'PLE-Q':
         bins = rtdl_num_embeddings.compute_bins(X=X_num, n_bins=config['d_embedding'])
@@ -162,7 +160,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         }
     else:
         bins = None
-        if emb_name == 'periodic':
+        if emb_name == 'periodic' or emb_name == 'PLR':
             num_embeddings = {
                 'type': 'PeriodicEmbeddings',
                 'd_embedding': config['d_embedding'],
@@ -172,15 +170,18 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
             }
         elif emb_name == 'kan_emb':
             num_embeddings = {
-                'type': 'KANLinear',
-                'in_features': num_cont_cols,
+                'type': '_NKANLinear',
+                'in_features': 1,
                 'out_features': config['d_embedding'],
+                'n': num_cont_cols
             }
         elif emb_name == 'fast_kan_emb':
             num_embeddings = {
-                'type': 'FastKANLayer',
-                'input_dim': num_cont_cols,
-                'out_features': config['d_embedding']
+                'type': '_NFastKANLayer',
+                'input_dim': 1,
+                'output_dim': config['d_embedding'],
+                'n': num_cont_cols
+                # 'd_embedding': config['d_embedding']
             }
         else:
             num_embeddings = None
