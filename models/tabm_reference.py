@@ -7,8 +7,8 @@ import itertools
 from typing import Any, Literal
 from models.fastkan import FastKAN, FastKANLayer
 from models.chebyshev_kan import ChebyKAN, ChebyKANLayer
-from models.efficient_kan import KAN, KANLinear
-from models.fastkan import SplineLinear
+from models.efficient_kan import KAN, KANLinear, _NKANLinear
+from models.fastkan import SplineLinear, _NFastKANLayer
 from models.fastkan import RadialBasisFunction
 from models.mlp import MLP
 import rtdl_num_embeddings
@@ -660,6 +660,8 @@ _CUSTOM_MODULES = {
         MLP,
         KAN,
         KANLinear,
+        _NKANLinear,
+        _NFastKANLayer,
         FastKAN,
         FastKANLayer,
         ChebyKAN,
@@ -805,9 +807,15 @@ class Model(nn.Module):
             else:
                 assert num_embeddings['type'].startswith('PiecewiseLinearEmbeddings')
                 self.num_module = make_module(**num_embeddings, bins=bins)
-            d_num = n_num_features * num_embeddings['d_embedding']
+            if num_embeddings['type'] == '_NKANLinear':
+                d_embedding = num_embeddings['out_features']
+            elif num_embeddings['type'] == '_NFastKANLayer':
+                d_embedding = num_embeddings['output_dim']
+            else:
+                d_embedding = num_embeddings['d_embedding']
+            d_num = n_num_features * d_embedding
             first_adapter_sections.extend(
-                num_embeddings['d_embedding'] for _ in range(n_num_features)
+                d_embedding for _ in range(n_num_features)
             )
         d_cat = (n_cat_features if n_cat_features != None else 0)
         first_adapter_sections.extend(1 for _ in range(d_cat)) # нужно для корректной работы _init_first_adapter, TODO: посмотреть на что это влияет, убрать, если не нужно
