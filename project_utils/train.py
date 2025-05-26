@@ -331,5 +331,4 @@ def train(
         test_real_epoch['loss'],    # Финальная! потери на тесте
         test_real_epoch['acc'],     # Финальная! точность на тесте
         test_real_epoch['epoch'],   # Финальная! эпоха на тесте
-        count_parameters(model)     # число параметров
     )

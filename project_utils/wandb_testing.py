@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import wandb
 
-from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
+from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything, count_parameters
 from project_utils.train import train, validate
 from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 from models.tabm_reference import Model
@@ -30,11 +30,13 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
     train_full_times = []
     train_epochs = []
     best_test_epochs = []
+    num_params = 0
 
     testing_config = get_test_config(dataset['info']['task_type'], 
                                      f'testing {model_name}_{arch_type}_{emb_name}_{optim_name} on {dataset_name}')
     # обертка тестирования
     def test_wrapper():
+        nonlocal num_params
         with wandb.init(
             project=f'{project_name}',
             group=f'dataset_{dataset_name}',
@@ -62,6 +64,8 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 k=k,
                 **layer_kwargs
             )
+            num_params = count_parameters(model)
+
             total_epochs, train_epoch_time, val_epoch_time, \
             test_best_loss, test_best_acc, test_best_epoch, \
             test_real_loss, test_real_acc, test_real_epoch = train(
@@ -101,7 +105,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 test_real_losses.append(np.sqrt(test_real_loss))
             else:
                 test_best_losses.append(test_best_loss)
-                test_real_losses.append(test_real_losses)
+                test_real_losses.append(test_real_loss)
             
             val_epoch_times.append(val_epoch_time)
             train_epoch_times.append(train_epoch_time)
@@ -164,11 +168,12 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         'arch_type' : arch_type,
         'emb_name' : emb_name,
         'optim_name' : optim_name,
+        'num_params' : num_params,
         # эпохи
         'num_epochs' : np.mean(train_epochs),
         'num_epochs_std' : np.std(train_epochs),
-        'test_best_epochs' : np.mean(best_test_epochs),
-        'test_best_epochs_std' : np.std(best_test_epochs),
+        'test_best_epoch' : np.mean(best_test_epochs),
+        'test_best_epoch_std' : np.std(best_test_epochs),
         # времена обучения
         'train_epoch_time' : np.mean(train_epoch_times),
         'train_epoch_time_std' : np.std(train_epoch_times),    
