@@ -56,7 +56,7 @@ def run_single_dataset(project_name, dataset_name,
                     clear_output(wait=True)
                     pkl_logs[f'{model_name}_{arch_type}_{emb_name}_{optim_name}'] = stats
                     send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}\n\
-                                          Test sweep_id {stats['sweep_id']}')
+                                          Test sweep_id {stats["sweep_id"]}')
 
     with open(f'results/{dataset_name}.pkl', 'wb') as f:
         pickle.dump(pkl_logs, f)
