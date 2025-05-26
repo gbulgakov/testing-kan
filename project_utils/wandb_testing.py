@@ -190,8 +190,8 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         # метрики (точность/лосс) (для удобства)
         'metric' : np.mean(metrics),
         'metric_std' : np.std(metrics),
-        'real_metrics' : np.mean(real_metrics),
-        'real_metrics_std' : np.std(real_metrics),
+        'real_metric' : np.mean(real_metrics),
+        'real_metric_std' : np.std(real_metrics),
         'direction' : direction,
         # sweep id
         'sweep_id' : test_id,
