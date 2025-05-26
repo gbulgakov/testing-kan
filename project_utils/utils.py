@@ -124,6 +124,14 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
                 'max' : 100
             }
         })
+    if emb_name == 'kan_emb':
+        params.update({
+            'emb_grid_size' : {'values' : [i for i in range(3, 17, 2)]},
+        })
+    if emb_name == 'fast_kan_emb':
+        params.update({
+            'emb_grid_size' : {'values' : [i for i in range(4, 18, 2)]}
+        })
     
     config = {
         'method' : 'random',

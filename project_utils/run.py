@@ -1,4 +1,5 @@
 import sys
+sys.path.append('/home/no_prolactin/KAN/testing-kan')
 import torch.nn as nn
 import numpy as np
 from typing import Literal, Optional
@@ -29,23 +30,15 @@ def run_single_model(project_name, dataset_name, model_name, arch_type, emb_name
     api = wandb.Api()
     sweep = api.sweep(f'georgy-bulgakov/{project_name}/{sweep_id}')
     runs = sweep.runs
-    best_run = None
-
-    def safe_score(score, direction):
-        if isinstance(score, str) or score is None:
-            return 1e20 if direction == 'minimize' else 0
-        return score
 
     if dataset['info']['task_type'] == 'regression':
-        best_run = min(runs, 
-                       key=lambda run : safe_score(run.summary.get('val_loss'), 'minimize'))
+        best_run = min(runs, key=lambda run: run.summary.get('val_loss', float('inf')))
     else:
-        best_run = max(runs, 
-                       key=lambda run : safe_score(run.summary.get('val_acc'), 'maximize'))
-    
+        best_run = max(runs, key=lambda run: run.summary.get('val_acc', 0))
     best_params = best_run.config
+
     stats = test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, patience)
-    return stats, best_params
+    return stats
 
 def run_single_dataset(project_name, dataset_name, 
                        optim_names, emb_names, model_names, arch_types,
@@ -53,34 +46,23 @@ def run_single_dataset(project_name, dataset_name,
     # dataset_type = dataset_info['type']
     zip_path = f'data/{dataset_name}.zip'
     dataset = datasets.load_dataset(dataset_name, zip_path)
-    results = []
     pkl_logs = {}
 
-    for model_name in model_names: # можно оставить только kan, тогда model_names = ['kan']
+    for model_name in model_names:
         for arch_type in arch_types:
             for optim_name in optim_names:
                 for emb_name in emb_names:
-                    stats, best_params = run_single_model(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience)
-                    results.append(stats)
+                    stats = run_single_model(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience)
                     clear_output(wait=True)
-                    pkl_logs[f'{model_name}_{arch_type}_{emb_name}_{optim_name}'] = (stats | best_params)
-                    send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}')
-
-    
-    with wandb.init(
-        project=project_name,
-        group=f'dataset_{dataset_name}',
-        name='models_comparison'
-    ) as run:
-        run.log({
-            f'final_table_{dataset_name}' : wandb.Table(dataframe=pd.DataFrame(results))
-        })
+                    pkl_logs[f'{model_name}_{arch_type}_{emb_name}_{optim_name}'] = stats
+                    send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}\n\
+                                          Test sweep_id {stats['sweep_id']}')
 
     with open(f'results/{dataset_name}.pkl', 'wb') as f:
         pickle.dump(pkl_logs, f)
 
     send_telegram_file(f'results/{dataset_name}.pkl')
-    return results
+    return pkl_logs
 
 
 def run_experiment(
@@ -93,20 +75,33 @@ def run_experiment(
     arch_types,
     num_epochs,
     num_trials,
-    patience
+    patience,
+    exp_name
 ):
+    total_logs = {}
     for dataset_name in dataset_names:
-        run_single_dataset(
-            project_name=project_name,
-            dataset_name=dataset_name,
-            optim_names=optim_names,
-            emb_names=emb_names,
-            model_names=model_names,
-            arch_types=arch_types,
-            num_epochs=num_epochs,
-            num_trials=num_trials,
-            patience=patience
-        )
+        logs = run_single_dataset(
+                project_name=project_name,
+                dataset_name=dataset_name,
+                optim_names=optim_names,
+                emb_names=emb_names,
+                model_names=model_names,
+                arch_types=arch_types,
+                num_epochs=num_epochs,
+                num_trials=num_trials,
+                patience=patience
+              )
+        total_logs[dataset_name] = logs
+        send_telegram_message(f'✅ Finished on {dataset_name}')
+
+    with open(f'results/{exp_name}.pkl', 'wb') as f:
+        pickle.dump(total_logs, f)
+    send_telegram_message(f'✅ Finished {exp_name}')
+    send_telegram_file(f'results/{exp_name}.pkl')
+    return total_logs
+    
+        
+        
 
 if __name__ == '__main__':
     run_experiment(

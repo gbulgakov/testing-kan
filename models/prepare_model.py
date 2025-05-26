@@ -173,6 +173,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
                 'type': '_NKANLinear',
                 'in_features': 1,
                 'out_features': config['d_embedding'],
+                'grid_size' : config['emb_grid_size'],
                 'n': num_cont_cols
             }
         elif emb_name == 'fast_kan_emb':
@@ -180,6 +181,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
                 'type': '_NFastKANLayer',
                 'input_dim': 1,
                 'output_dim': config['d_embedding'],
+                'num_grids' : config['emb_grid_size'],
                 'n': num_cont_cols
                 # 'd_embedding': config['d_embedding']
             }

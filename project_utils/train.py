@@ -248,18 +248,21 @@ def train(
 
     val_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
     test_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
+    test_real_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
 
     remaining_patience = patience
+    total_epochs = 0
     for epoch in tqdm(range(epochs), desc = f'{model_name}_{arch_type} on {dataset_name}'):
-        train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
+        total_epochs +=1 
 
+        train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
         # тестируем и валидируем
         val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
         test_loss, test_acc, test_time = validate(model, device, dataset, base_loss_fn, 'test', model_name, arch_type)
  
         # логируем
         logs = {
-            'epoch' : epoch,
+            'epoch' : epoch + 1,
             'train_loss' : train_loss,
             'val_loss' : val_loss,
             'test_loss' : test_loss,
@@ -277,8 +280,8 @@ def train(
 
 
         # обновляем лучшие эпохи для val/test
-        val_epoch = {'epoch' : epoch, 'loss' : val_loss, 'acc' : val_acc}
-        test_epoch = {'epoch' : epoch, 'loss' : test_loss, 'acc' : test_acc}
+        val_epoch = {'epoch' : epoch + 1, 'loss' : val_loss, 'acc' : val_acc}
+        test_epoch = {'epoch' : epoch + 1, 'loss' : test_loss, 'acc' : test_acc}
         if compare_epochs(task_type, val_epoch, val_best_epoch):
             val_best_epoch = val_epoch
             remaining_patience = patience
@@ -296,8 +299,10 @@ def train(
     #     in_features += dataset['train']['X_cat'].shape[1]  # Добавляем категориальные признаки
 
     final_logs = {
-        'train_epoch_time' : sum(train_times) / epochs,
-        'val_epoch_time' : sum(val_times) / epochs,
+        'train_epoch_time' : sum(train_times) / total_epochs,
+        'val_epoch_time' : sum(val_times) / total_epochs,
+        'full_train_time' : sum(train_times),
+        'num_epochs' : total_epochs,
         'num_params' : count_parameters(model),
         'in_features' : dataset['info']['in_features'],
         'out_features' : (1 if task_type != 'multiclass' else dataset['info']['n_classes']),
@@ -316,9 +321,13 @@ def train(
     wandb.log(final_logs)
 
     return (
+        total_epochs,
         sum(train_times) / epochs,  # Среднее время обучения
         sum(val_times) / epochs,    # Среднее время валидации
         test_best_epoch['loss'],    # Лучшие потери на тесте
         test_best_epoch['acc'],     # Лучшая точность на тесте
-        test_best_epoch['epoch']    # Лучшая эпоха на тесте
+        test_best_epoch['epoch'],   # Лучшая эпоха на тесте
+        test_real_epoch['loss'],    # Финальная! потери на тесте
+        test_real_epoch['acc'],     # Финальная! точность на тесте
+        test_real_epoch['epoch'],   # Финальная! эпоха на тесте   
     )
