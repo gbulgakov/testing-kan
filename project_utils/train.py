@@ -285,6 +285,7 @@ def train(
         if compare_epochs(task_type, val_epoch, val_best_epoch):
             val_best_epoch = val_epoch
             remaining_patience = patience
+            test_real_epoch = test_epoch
         else:
             remaining_patience -= 1
         if remaining_patience < 0:
@@ -329,5 +330,6 @@ def train(
         test_best_epoch['epoch'],   # Лучшая эпоха на тесте
         test_real_epoch['loss'],    # Финальная! потери на тесте
         test_real_epoch['acc'],     # Финальная! точность на тесте
-        test_real_epoch['epoch'],   # Финальная! эпоха на тесте   
+        test_real_epoch['epoch'],   # Финальная! эпоха на тесте
+        count_parameters(model)     # число параметров
     )
