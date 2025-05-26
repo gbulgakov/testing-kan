@@ -10,7 +10,6 @@ from project_utils.train import train, validate
 from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 from models.tabm_reference import Model
 
-
 def test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs=10, patience=5):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     task_type = dataset['info']['task_type']
@@ -125,6 +124,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         metrics = test_best_accuracies
         real_metrics = test_real_accuracies
         direction = 'max'
+    
     # гиперпараметры отдельно для удобства
     if model_name == 'mlp':
         hparams = {
@@ -189,7 +189,10 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
         'real_metrics_std' : np.std(real_metrics),
         'direction' : direction,
         # sweep id
-        'sweep_id' : test_id
+        'sweep_id' : test_id,
+        # размеры датасета
+        'num_samples' : dataset['info']['num_samples'],
+        'in_features' : dataset['info']['in_features']
     }
     stats.update(hparams)
     return stats # чисто технически для удобства
