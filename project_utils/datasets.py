@@ -137,6 +137,9 @@ def load_dataset(name, zip_path=None, num_workers=4):
             
         # добавим полезную инфу
         data['info']['in_features'] = data['train']['X_num'].shape[1]
+        data['info']['num_samples'] = 0
+        for part in ['train', 'test', 'val']:
+            data['info']['num_samples'] += data[part]['X_num'].shape[0]
         data['info']['num_cont_cols'] = data['train']['X_num'].shape[1]
         data['info']['num_cat_cols'] = 0
         if 'X_cat' in data['train']:
