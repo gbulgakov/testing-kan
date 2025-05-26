@@ -58,10 +58,10 @@ def run_single_dataset(project_name, dataset_name,
                     send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}\n\
                                           Test sweep_id {stats["sweep_id"]}')
 
-    with open(f'results/{dataset_name}.pkl', 'wb') as f:
+    with open(f'/home/no_prolactin/KAN/testing-kan/results/{dataset_name}.pkl', 'wb') as f:
         pickle.dump(pkl_logs, f)
 
-    send_telegram_file(f'results/{dataset_name}.pkl')
+    send_telegram_file(f'/home/no_prolactin/KAN/testing-kan/results/{dataset_name}.pkl')
     return pkl_logs
 
 
@@ -94,10 +94,10 @@ def run_experiment(
         total_logs[dataset_name] = logs
         send_telegram_message(f'✅ Finished on {dataset_name}')
 
-    with open(f'results/{exp_name}.pkl', 'wb') as f:
+    with open(f'/home/no_prolactin/KAN/testing-kan/results/{exp_name}.pkl', 'wb') as f:
         pickle.dump(total_logs, f)
     send_telegram_message(f'✅ Finished {exp_name}')
-    send_telegram_file(f'results/{exp_name}.pkl')
+    send_telegram_file(f'/home/no_prolactin/KAN/testing-kan/results/{exp_name}.pkl')
     return total_logs
     
         
