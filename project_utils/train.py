@@ -323,8 +323,8 @@ def train(
 
     return (
         total_epochs,
-        sum(train_times) / epochs,  # Среднее время обучения
-        sum(val_times) / epochs,    # Среднее время валидации
+        sum(train_times) / total_epochs,  # Среднее время обучения
+        sum(val_times) / total_epochs,    # Среднее время валидации
         test_best_epoch['loss'],    # Лучшие потери на тесте
         test_best_epoch['acc'],     # Лучшая точность на тесте
         test_best_epoch['epoch'],   # Лучшая эпоха на тесте
