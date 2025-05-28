@@ -9,7 +9,6 @@ import json
 import torch
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 import numpy as np
-
 BATCH_SIZES = {
     'gesture': 128,
     'churn': 128,
@@ -26,7 +25,9 @@ BATCH_SIZES = {
     'sberbank-housing' : 256,
     'homesite-insurance' : 1024,
     'homecredit-default' : 1024,
-    'ecom-offers' : 1024
+    'ecom-offers' : 1024, 
+    'regression-num-large-0-year' : 1024,
+    'black_friday' : 1024
 }
 
 # датасет с батчами нужного вида
