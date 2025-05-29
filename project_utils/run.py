@@ -55,7 +55,7 @@ def run_single_dataset(project_name, dataset_name,
                     stats = run_single_model(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience)
                     clear_output(wait=True)
                     pkl_logs[f'{model_name}_{arch_type}_{emb_name}_{optim_name}'] = stats
-                    send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}\n\
+                    send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}\
                                           Test sweep_id {stats["sweep_id"]}')
 
     # with open(f'/home/no_prolactin/KAN/testing-kan/results/{dataset_name}.pkl', 'wb') as f:
