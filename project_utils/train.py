@@ -29,7 +29,7 @@ BATCH_SIZES = {
     'homecredit-default' : 1024,
     'ecom-offers' : 1024, 
     'regression-num-large-0-year' : 1024,
-    'black_friday' : 1024
+    'black-friday' : 1024
 }
 
 
