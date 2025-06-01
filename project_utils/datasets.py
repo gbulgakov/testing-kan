@@ -74,10 +74,24 @@ def load_dataset(name, zip_path=None, num_workers=4):
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         # Создаем временную директорию для распаковки
         temp_dir = Path(f'{name}_data')
+        temp_dir.mkdir(exist_ok=True)
         zip_ref.extractall(temp_dir)
-        
+
+        # Определяем корневую папку с данными
+        content = list(temp_dir.glob('*'))
+        if len(content) == 1 and content[0].is_dir():
+            # Если в архиве была одна папка - используем её
+            data_dir = content[0]
+        else:
+            # Если файлы были в корне - создаем папку с именем датасета
+            data_dir = temp_dir / name
+            data_dir.mkdir(exist_ok=True)
+            for item in content:
+                item.rename(data_dir / item.name)
+    
+
         # Загружаем метаданные
-        with open(temp_dir / f'{name}' / 'info.json') as f:
+        with open(data_dir / 'info.json') as f:
             data['info'] = json.load(f)
         
 
@@ -91,13 +105,13 @@ def load_dataset(name, zip_path=None, num_workers=4):
         # Загружаем все .npy файлы
         for part in ['train', 'val', 'test']:
             for data_type in ['X_num', 'X_cat', 'y']:
-                file_path = temp_dir / f'{name}' / f'{data_type}_{part}.npy'
+                file_path = data_dir / f'{data_type}_{part}.npy'
                 if file_path.exists():
                     data[part][data_type] = np.load(file_path, allow_pickle=True)
 
         # Обучение OHE на train и кодирование категориальных признаков
         for part in ['train', 'val', 'test']:
-            cat_path = temp_dir / f'{name}' / f'X_cat_{part}.npy'
+            cat_path = data_dir / f'X_cat_{part}.npy'
             if cat_path.exists():
                 if part == 'train':
                     one_hot_encoder.fit(data['train']['X_cat']) 
@@ -105,7 +119,7 @@ def load_dataset(name, zip_path=None, num_workers=4):
 
         # Обучение StandardScaler на train и стандартизация числовых признаков
         for part in ['train', 'val', 'test']:
-            num_path = temp_dir / f'{name}' / f'X_num_{part}.npy'
+            num_path = data_dir / f'X_num_{part}.npy'
             if num_path.exists():
                 if part == 'train':
                     scaler.fit(data['train']['X_num'])  # Обучаем scaler только на train
@@ -114,7 +128,7 @@ def load_dataset(name, zip_path=None, num_workers=4):
         # Для регрессии надо стандартизировать y
         if data['info']['task_type'] == 'regression':
             for part in ['train', 'val', 'test']:
-                y_path = temp_dir / f'{name}' / f'y_{part}.npy'
+                y_path = data_dir / f'y_{part}.npy'
                 if y_path.exists():
                     if part == 'train':
                         # Преобразуем в 2D для StandardScaler, сохраняя размерность
