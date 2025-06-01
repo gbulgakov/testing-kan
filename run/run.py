@@ -1,5 +1,10 @@
 import sys
-sys.path.append('/home/no_prolactin/KAN/testing-kan')
+import os
+from pathlib import Path
+
+HOME = str(Path.home())
+sys.path.append(os.path.join(HOME, 'KAN', 'testing-kan'))
+
 import torch.nn as nn
 import numpy as np
 from typing import Literal, Optional
@@ -49,7 +54,7 @@ def run_single_dataset(project_name, dataset_name,
                        optim_names, emb_names, model_names, arch_types,
                        num_epochs, num_trials, patience):
     # dataset_type = dataset_info['type']
-    zip_path = f'data/{dataset_name}.zip'
+    zip_path = os.path.join(HOME, 'KAN', 'data', f'{dataset_name}.zip')
     dataset = datasets.load_dataset(dataset_name, zip_path)
     pkl_logs = {}
 
@@ -84,6 +89,11 @@ def run_experiment(
     exp_name
 ):
     total_logs = {}
+    results_dir = os.path.join(HOME, 'KAN', 'testing-kan', 'results')
+
+    # Создаем директорию для результатов, если ее нет
+    os.makedirs(results_dir, exist_ok=True)
+
     for dataset_name in dataset_names:
         logs = run_single_dataset(
                 project_name=project_name,
@@ -99,10 +109,13 @@ def run_experiment(
         total_logs[dataset_name] = logs
         send_telegram_message(f'✅ Finished on {dataset_name}')
 
-    with open(f'/home/no_prolactin/KAN/testing-kan/results/{exp_name}.pkl', 'wb') as f:
+    # Сохраняем результаты с универсальным путем
+    results_path = os.path.join(results_dir, f'{exp_name}.pkl')
+    with open(results_path, 'wb') as f:
         pickle.dump(total_logs, f)
+
     send_telegram_message(f'✅ Finished {exp_name}')
-    send_telegram_file(f'/home/no_prolactin/KAN/testing-kan/results/{exp_name}.pkl')
+    send_telegram_file(results_path)
     return total_logs
 
 
