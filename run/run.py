@@ -23,6 +23,11 @@ from project_utils.tg_bot import send_telegram_file, send_telegram_message
 from project_utils.wandb_tuning import wandb_tuning
 from project_utils.wandb_testing import test_best_model
 
+# для удобного запуска
+import argparse
+import yaml
+
+
 def run_single_model(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience):
     sweep_id = wandb_tuning(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience)
     clear_output(wait=True)
@@ -99,19 +104,43 @@ def run_experiment(
     send_telegram_message(f'✅ Finished {exp_name}')
     send_telegram_file(f'/home/no_prolactin/KAN/testing-kan/results/{exp_name}.pkl')
     return total_logs
-    
-        
-        
 
-if __name__ == '__main__':
+
+# парсинг аргументов командной строки для запуска
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run experiment with config and CLI override")
+    parser.add_argument('--config', type=str, required=True, help="Path to YAML config")
+    parser.add_argument('--datasets', nargs='+', required=True, help="List of datasets names")
+    parser.add_argument('--models', nargs='+', required=True, help="List of model names")
+    parser.add_argument('--embs', nargs='+', required=True, help="List of embeddings")
+    parser.add_argument('--exp-name', type=str, required=True, help="Name of this experiment")
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    # Загрузим конфиг из yaml
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+
+    # Datasest, models, embs — только из CLI!
+    dataset_names = args.datasets
+    model_names = args.models
+    emb_names = args.embs
+    exp_name = args.exp_name
+
+    # Остальное — из YAML
     run_experiment(
-        project_name='Embeddings 2.0 on GPU',
-        dataset_names=['gesture', 'house', 'california'],
-        model_names=['mlp', 'small_kan', 'kan', 'fast_kan'],
-        emb_names=['none'],
-        optim_names=['adamw'],
-        arch_types=['plain'],
-        num_epochs=100,
-        num_trials=70,
-        patience=5
+        project_name=config["project_name"],
+        dataset_names=dataset_names,         # <- CLI
+        model_names=model_names,             # <- CLI
+        emb_names=emb_names,                 # <- CLI
+        optim_names=config["optim_names"],
+        arch_types=config["arch_types"],
+        num_epochs=config["num_epochs"],
+        num_trials=config["num_trials"],
+        patience=config["patience"],
+        exp_name=exp_name                    # <- CLI
     )
+
+if __name__ == "__main__":
+    main()

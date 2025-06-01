@@ -1,0 +1,6 @@
+project_name: 'Embeddings 2.0 on GPU'
+num_epochs: 100
+num_trials: 70
+patience: 5
+arch_types: ["plain"]
+optim_names: ["adamw"]
