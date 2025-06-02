@@ -30,7 +30,12 @@ BATCH_SIZES = {
     'ecom-offers' : 1024, 
     'regression-num-large-0-year' : 1024,
     'black-friday' : 1024,
-    'diamond' : 256
+    'diamond' : 256,
+    'classif-num-large-0-MiniBooNE' : 512,
+    'regression-num-medium-0-medical_charges' : 1024,
+    'classif-cat-large-0-road-safety' : 1024,
+    'regression-cat-large-0-nyc-taxi-green-dec-2016' : 1024,
+    'regression-cat-large-0-particulate-matter-ukair-2017' : 1024
 }
 
 
