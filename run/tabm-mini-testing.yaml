@@ -1,0 +1,6 @@
+project_name: 'tabm-mini testing'
+num_epochs: 100
+num_trials: 70
+patience: 5
+arch_types: ["tabm-mini"]
+optim_names: ["adamw"]

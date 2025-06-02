@@ -7,6 +7,7 @@ import wandb
 
 from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything, count_parameters
 from project_utils.train import train, validate
+from project_utils.datasets import get_dataloaders
 from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
 from models.tabm_reference import Model
 
@@ -64,6 +65,12 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 k=k,
                 **layer_kwargs
             )
+            real_dataset = get_dataloaders(
+                dataset=dataset,
+                model=model,
+                device=device,
+                num_workers=4)
+            real_dataset['info'] = dataset['info']
             num_params = count_parameters(model)
 
             total_epochs, train_epoch_time, val_epoch_time, \
@@ -74,7 +81,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 model_name=f'{model_name}_{arch_type}_{emb_name}_{optim_name}',
                 arch_type=arch_type,
                 device=device,
-                dataset=dataset,
+                dataset=real_dataset,
                 base_loss_fn=loss_fn,
                 optimizer=get_optimizer(optim_name, model.parameters(), best_params),
                 patience=patience

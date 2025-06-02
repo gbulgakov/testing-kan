@@ -133,13 +133,8 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
 
     # для некоторых эмбеддингов нужны все данные
     if emb_name not in ['none', 'periodic']:
-        loader = dataset['train']
-        X_num, Y = [], []
-        for x_num, x_cat, y in loader:
-            X_num.append(x_num)
-            Y.append(y)
-        X_num = torch.cat(X_num, dim=0)
-        Y = torch.cat(Y, dim=0)
+        X_num = dataset['train']['X_num']
+        Y = dataset['train']['y']
     # создание эмбеддингов
     if emb_name == 'piecewiselinearq' or emb_name == 'PLE-Q':
         bins = rtdl_num_embeddings.compute_bins(X=X_num, n_bins=config['d_embedding'])

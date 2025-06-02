@@ -8,6 +8,7 @@ import pickle
 import json
 import torch
 from torch.utils.data import Dataset, DataLoader, TensorDataset
+from torch.utils.data.sampler import Sampler, BatchSampler
 import numpy as np
 BATCH_SIZES = {
     'gesture': 128,
@@ -49,8 +50,65 @@ class CustomTensorDataset(Dataset):
     def __getitem__(self, idx):
         return self.X_num[idx], self.X_cat[idx], self.y[idx]
 
+#правило, по которому создаются батчи по индексу, при создании DataLoader
+class CustomBatchSampler(BatchSampler):
+    def __init__(self, data_size, batch_size, k, share_batches, device):
+        self.data_size = data_size
+        self.batch_size = batch_size
+        self.k = k
+        self.share_batches = share_batches
+        self.device = device
+        # Предварительно генерируем все батчи один раз при инициализации
+    
+    def __iter__(self):
+        # Просто возвращаем итератор по предварительно созданным батчам
+        if self.share_batches:
+            # Общий случай: одна перестановка
+            self.batches = torch.randperm(self.data_size, device=self.device).split(self.batch_size)
+        else:
+            [x.transpose(0, 1).flatten()
+            for x in torch.rand((self.k, self.data_size), device=self.device)
+            .argsort(dim=1)
+            .split(self.batch_size, dim=1)]
+        # Вычисляем общее количество батчей
+        self.num_batches = len(self.batches)
+        return iter(self.batches)
+    
+    def __len__(self):
+        return self.num_batches
+    
+def get_dataloader(model, part: str, batch_size: int, dataset: Dataset, device: str, num_workers: int) -> DataLoader:
+    arch_type = model.arch_type
+    data_size = len(dataset)
+    k = getattr(model, 'k', 1)  # Безопасное получение k (по умолчанию 1)
+    
+    # Определяем стратегию батчирования
+    if arch_type != 'plain' and part == 'train':
+        share_batches = getattr(model, 'share_training_batches', True)
+    else:
+        # Для всех других случаев (eval/test) используем общие батчи
+        share_batches = True
+    
+    # Создаем кастомный batch sampler
+    batch_sampler = CustomBatchSampler(
+        data_size=data_size,
+        batch_size=batch_size,
+        k=k,
+        share_batches=share_batches,
+        device=device,
+        num_workers=num_workers
+    )
+    
+    # Создаем DataLoader с нашим batch_sampler
+    return DataLoader(
+        dataset=dataset,
+        batch_sampler=batch_sampler,
+        pin_memory=(device != 'cpu'),
+        # collate_fn=collate_fn
+    )
+
 # это для получения даталоадеров потом 
-def get_dataloaders(dataset, num_workers=4):
+def get_dataloaders(dataset, model, device, num_workers=4):
     dataset_name = dataset['info']['id'].split('--')[0]
     dataloaders = {}
     for part in ['train', 'test', 'val']:
@@ -62,13 +120,13 @@ def get_dataloaders(dataset, num_workers=4):
             y=dataset[part]['y']
         )
 
-        dataloaders[part] = DataLoader(
-            dataset=dataset_part,
+        dataloaders[part] = get_dataloader(
+            model=model,
+            part=part,
             batch_size=BATCH_SIZES[dataset_name],
-            shuffle=(part == 'train'),
-            num_workers=num_workers,
-            pin_memory=True         # потому что всегда cuda
-        )
+            dataset=dataset_part,
+            device=device,
+            num_workers=num_workers)
     return dataloaders
 
 # добавил простейший препроцессинг
@@ -93,7 +151,8 @@ def load_dataset(name, zip_path=None, num_workers=4):
             data_dir = temp_dir / name
             data_dir.mkdir(exist_ok=True)
             for item in content:
-                item.rename(data_dir / item.name)
+                if item != data_dir:
+                    item.rename(data_dir / item.name)
     
 
         # Загружаем метаданные
@@ -170,6 +229,10 @@ def load_dataset(name, zip_path=None, num_workers=4):
         # Удаляем временную директорию
         shutil.rmtree(temp_dir)
     
-    dataset = get_dataloaders(data, num_workers=num_workers)
-    dataset['info'] = data['info']
-    return dataset
+    # dataset = get_dataloaders(data, num_workers=num_workers)
+    # dataset['info'] = data['info']
+    # return dataset
+    #
+    #Перенес get_dataloaders вне datasets.py т.к. теперь его применение требует знания k, arch_type
+    
+    return data
