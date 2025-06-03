@@ -64,10 +64,10 @@ class CustomBatchSampler(BatchSampler):
         # Просто возвращаем итератор по предварительно созданным батчам
         if self.share_batches:
             # Общий случай: одна перестановка
-            self.batches = torch.randperm(self.data_size, device=self.device).split(self.batch_size)
+            self.batches = torch.randperm(self.data_size, device='cpu').split(self.batch_size) # CPU здесь необходимо, т.к. невозможно создание тензоров на CUDA в дочерних процессах (для num_workers > 0)
         else:
             [x.transpose(0, 1).flatten()
-            for x in torch.rand((self.k, self.data_size), device=self.device)
+            for x in torch.rand((self.k, self.data_size), device='cpu') # аналогично 
             .argsort(dim=1)
             .split(self.batch_size, dim=1)]
         # Вычисляем общее количество батчей
@@ -96,7 +96,6 @@ def get_dataloader(model, part: str, batch_size: int, dataset: Dataset, device: 
         k=k,
         share_batches=share_batches,
         device=device,
-        num_workers=num_workers
     )
     
     # Создаем DataLoader с нашим batch_sampler
@@ -104,6 +103,7 @@ def get_dataloader(model, part: str, batch_size: int, dataset: Dataset, device: 
         dataset=dataset,
         batch_sampler=batch_sampler,
         pin_memory=(device != 'cpu'),
+        num_workers=num_workers
         # collate_fn=collate_fn
     )
 
@@ -130,7 +130,7 @@ def get_dataloaders(dataset, model, device, num_workers=4):
     return dataloaders
 
 # добавил простейший препроцессинг
-def load_dataset(name, zip_path=None, num_workers=4):
+def load_dataset(name, zip_path=None):
     if zip_path is None:
         zip_path = f'/kaggle/working/{name}.zip'
     data = {'train': {}, 'val': {}, 'test': {}}
