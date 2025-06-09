@@ -3,7 +3,7 @@ from typing import Dict, Any
 import torch
 import wandb
 
-from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything
+from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything, clean_up_model
 from project_utils.train import train, validate
 from project_utils.datasets import get_dataloaders
 from models.prepare_model import model_init_preparation, ModelWithEmbedding
@@ -51,6 +51,7 @@ def wandb_tuning(project_name, dataset_name,
                 k=k,
                 **layer_kwargs
             )
+            optimizer=get_optimizer(optim_name, model.parameters(), config),
             real_dataset = get_dataloaders(
                 dataset=dataset,
                 model=model,
@@ -65,9 +66,12 @@ def wandb_tuning(project_name, dataset_name,
                 device=device,
                 dataset=real_dataset,
                 base_loss_fn=loss_fn,
-                optimizer=get_optimizer(optim_name, model.parameters(), config),
+                optimizer=optimizer,
                 patience=patience
             )
+          
+            # очищаем память
+            clean_up_model(model, optimizer)
     sweep_config = get_sweep_config(model_name, emb_name, dataset_info['task_type'], 
                                     f'tuning {model_name}_{arch_type}_{emb_name}_{optim_name} on {dataset_name}')
     
