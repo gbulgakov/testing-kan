@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 import pickle
 import json
+import gc
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
@@ -168,3 +169,8 @@ def get_optimizer(optim_name, model_params, config):
         optim_kwargs['weight_decay'] = config['weight_decay']
     return optim_class(model_params, **optim_kwargs)
  
+def clean_up_model(model, optimizer):
+    del model, optimizer
+    torch.cuda.empty_cache()
+    gc.collect()
+
