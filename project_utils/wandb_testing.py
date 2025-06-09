@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import wandb
 
-from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything, count_parameters
+from project_utils.utils import get_optimizer, get_sweep_config, get_test_config, seed_everything, count_parameters, clean_up_model
 from project_utils.train import train, validate
 from project_utils.datasets import get_dataloaders
 from models.prepare_model import model_init_preparation, ModelWithEmbedding, MLP
@@ -65,6 +65,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 k=k,
                 **layer_kwargs
             )
+            optimizer=get_optimizer(optim_name, model.parameters(), best_params)
             real_dataset = get_dataloaders(
                 dataset=dataset,
                 model=model,
@@ -83,7 +84,7 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
                 device=device,
                 dataset=real_dataset,
                 base_loss_fn=loss_fn,
-                optimizer=get_optimizer(optim_name, model.parameters(), best_params),
+                optimizer=optimizer,
                 patience=patience
             )
             # Логируем результаты для каждого сида
@@ -119,6 +120,9 @@ def test_best_model(best_params, project_name, dataset_name, model_name, arch_ty
             train_full_times.append(total_epochs * train_epoch_time)
             best_test_epochs.append(test_best_epoch)
             train_epochs.append(total_epochs)
+
+            # очищаем память
+            clean_up_model(model, optimizer)
 
     test_id = wandb.sweep(sweep=testing_config,
                            project=f'{project_name}',
