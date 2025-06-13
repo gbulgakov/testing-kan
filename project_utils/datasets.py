@@ -66,10 +66,12 @@ class CustomBatchSampler(BatchSampler):
             # Общий случай: одна перестановка
             self.batches = torch.randperm(self.data_size, device='cpu').split(self.batch_size) # CPU здесь необходимо, т.к. невозможно создание тензоров на CUDA в дочерних процессах (для num_workers > 0)
         else:
-            [x.transpose(0, 1).flatten()
-            for x in torch.rand((self.k, self.data_size), device='cpu') # аналогично 
-            .argsort(dim=1)
-            .split(self.batch_size, dim=1)]
+            self.batches = [
+                x.transpose(0, 1).flatten()
+                for x in torch.rand((self.k, self.data_size), device='cpu') # аналогично 
+                .argsort(dim=1)
+                .split(self.batch_size, dim=1)
+            ]
         # Вычисляем общее количество батчей
         self.num_batches = len(self.batches)
         return iter(self.batches)
