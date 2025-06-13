@@ -51,7 +51,7 @@ def wandb_tuning(project_name, dataset_name,
                 k=k,
                 **layer_kwargs
             )
-            optimizer=get_optimizer(optim_name, model.parameters(), config),
+            optimizer=get_optimizer(optim_name, model.parameters(), config)
             real_dataset = get_dataloaders(
                 dataset=dataset,
                 model=model,
