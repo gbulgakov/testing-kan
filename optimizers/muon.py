@@ -11,7 +11,7 @@ from typing import Dict, Tuple
 import torch
 import torch.distributed as dist
 
-from optimizers.schedule import cos_inf_schedule, cosine_wsd_decay_schedule, wsd_schedule
+from .schedule import cos_inf_schedule, cosine_wsd_decay_schedule, wsd_schedule
 
 
 # copy from https://github.com/KellerJordan/Muon/tree/master
@@ -493,34 +493,21 @@ class Muon(torch.optim.Optimizer):
         )
 
         params = list(muon_params)
-        muon_params_set = set(params)
         adamw_params = list(adamw_params) if adamw_params is not None else []
         params.extend(adamw_params)
         super().__init__(params, defaults)
-        
-        # intialiase use_muon for every parameter
-        for group in self.param_groups:
-            for p in group['params']:
-                # Use Muon for every parameter in muon_params which is >= 2D 
-                # and doesn't look like an embedding or head layer
-                self.state[p]["use_muon"] = (
-                    p in muon_params_set and 
-                    p.ndim >= 2 and 
-                    p.size(0) < 10000
-                )
 
-        '''There were an error with parameters IDs due to Pytorch implementation'''
         # Sort parameters into those for which we will use Muon, and those for which we will not
-        # for p in muon_params:
-        #     # Use Muon for every parameter in muon_params which is >= 2D and doesn't look like an embedding or head layer
-        #     if p.ndim >= 2 and p.size(0) < 10000:
-        #         self.state[p]["use_muon"] = True
-        #     # self.state[p]["use_muon"] = True
-        #     else:
-        #         self.state[p]["use_muon"] = False
-        # for p in adamw_params:
-        #     # Do not use Muon for parameters in adamw_params
-        #     self.state[p]["use_muon"] = False
+        for p in muon_params:
+            # Use Muon for every parameter in muon_params which is >= 2D and doesn't look like an embedding or head layer
+            if p.ndim >= 2 and p.size(0) < 10000:
+                self.state[p]["use_muon"] = True
+            # self.state[p]["use_muon"] = True
+            else:
+                self.state[p]["use_muon"] = False
+        for p in adamw_params:
+            # Do not use Muon for parameters in adamw_params
+            self.state[p]["use_muon"] = False
 
         if "WORLD_SIZE" in os.environ:
             self.world_size = int(os.environ["WORLD_SIZE"])
