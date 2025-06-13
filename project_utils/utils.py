@@ -169,9 +169,9 @@ def get_optimizer(optim_name, model_params, config):
     optim_class = OPTIMIZERS[optim_name]
     optim_kwargs = {'lr' : config['lr']}
 
-    if optim_name != 'muon':        # для muon все параметры  -- muon_params
+    if optim_name != 'muon':             # для muon все параметры  -- muon_params
         optim_kwargs['weight_decay'] = config['weight_decay']
-    if optim_name == 'sign':
+    if optim_name == 'momentum_sign':    # базово делаем без моментума
         optim_kwargs['momentum'] = 0.9
 
     if optim_name == 'muon':
