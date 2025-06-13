@@ -11,7 +11,7 @@ def parse_args():
     parser.add_argument('--models', nargs='+', help="List of model names")
     parser.add_argument('--embs', nargs='+', help="List of embeddings")
     parser.add_argument('--optimizers', nargs='+', help="List of optimizers")
-    parser.add_argument('--arch_types', nargs='+', help="List of architectures")
+    parser.add_argument('--arch-types', nargs='+', help="List of architectures")
     parser.add_argument('--exp-name', type=str, required=True, help="Name of this experiment")
 
     return parser.parse_args()
