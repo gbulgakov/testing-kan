@@ -1,159 +1,57 @@
-import sys
-import os
-from pathlib import Path
-
-HOME = str(Path.home())
-sys.path.append(os.path.join(HOME, 'KAN', 'testing-kan'))
-
-import torch.nn as nn
-import numpy as np
-from typing import Literal, Optional
-import pandas as pd
-import numpy as np
-import torch
-import pickle
-import wandb
-from IPython.display import clear_output
-wandb.login(key='936d887040f82c8da3d87f5207c4178259c7b922')
-
-from models.efficient_kan import KAN
-from models.fastkan import FastKAN
-from models.chebyshev_kan import ChebyKAN
-from models.mlp import MLP
-from models.prepare_model import model_init_preparation, ModelWithEmbedding
-
-from project_utils import utils
-from project_utils import datasets
-from project_utils.tg_bot import send_telegram_file, send_telegram_message
-from project_utils.wandb_tuning import wandb_tuning
-from project_utils.wandb_testing import test_best_model
-
-# для удобного запуска
+from exp_runner import run_experiment
 import argparse
 import yaml
-
-
-def run_single_model(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience):
-    sweep_id = wandb_tuning(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience)
-    clear_output(wait=True)
-    # вспоминаем лучшие параметры
-    api = wandb.Api()
-    sweep = api.sweep(f'georgy-bulgakov/{project_name}/{sweep_id}')
-    runs = sweep.runs
-
-    if dataset['info']['task_type'] == 'regression':
-        best_run = min(runs, key=lambda run: run.summary.get('val_loss', float('inf')))
-    else:
-        best_run = max(runs, key=lambda run: run.summary.get('val_acc', 0))
-    best_params = best_run.config
-
-    stats = test_best_model(best_params, project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, patience)
-    return stats
-
-def run_single_dataset(project_name, dataset_name, 
-                       optim_names, emb_names, model_names, arch_types,
-                       num_epochs, num_trials, patience):
-    # dataset_type = dataset_info['type']
-    zip_path = os.path.join(HOME, 'KAN', 'data', f'{dataset_name}.zip')
-    dataset = datasets.load_dataset(dataset_name, zip_path)
-    pkl_logs = {}
-
-    for model_name in model_names:
-        for arch_type in arch_types:
-            for optim_name in optim_names:
-                for emb_name in emb_names:
-                    stats = run_single_model(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience)
-                    clear_output(wait=True)
-                    pkl_logs[f'{model_name}_{arch_type}_{emb_name}_{optim_name}'] = stats
-                    send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}\
-                                          Test sweep_id {stats["sweep_id"]}')
-
-    # with open(f'/home/no_prolactin/KAN/testing-kan/results/{dataset_name}.pkl', 'wb') as f:
-    #     pickle.dump(pkl_logs, f)
-
-    # send_telegram_file(f'/home/no_prolactin/KAN/testing-kan/results/{dataset_name}.pkl')
-    return pkl_logs
-
-
-def run_experiment(
-    *,
-    project_name,
-    dataset_names,
-    model_names,
-    emb_names,
-    optim_names,
-    arch_types,
-    num_epochs,
-    num_trials,
-    patience,
-    exp_name
-):
-    total_logs = {}
-    results_dir = os.path.join(HOME, 'KAN', 'testing-kan', 'results')
-
-    # Создаем директорию для результатов, если ее нет
-    os.makedirs(results_dir, exist_ok=True)
-
-    for dataset_name in dataset_names:
-        logs = run_single_dataset(
-                project_name=project_name,
-                dataset_name=dataset_name,
-                optim_names=optim_names,
-                emb_names=emb_names,
-                model_names=model_names,
-                arch_types=arch_types,
-                num_epochs=num_epochs,
-                num_trials=num_trials,
-                patience=patience
-              )
-        total_logs[dataset_name] = logs
-        send_telegram_message(f'✅ Finished on {dataset_name}')
-
-    # Сохраняем результаты с универсальным путем
-    results_path = os.path.join(results_dir, f'{exp_name}.pkl')
-    with open(results_path, 'wb') as f:
-        pickle.dump(total_logs, f)
-
-    send_telegram_message(f'✅ Finished {exp_name}')
-    send_telegram_file(results_path)
-    return total_logs
 
 
 # парсинг аргументов командной строки для запуска
 def parse_args():
     parser = argparse.ArgumentParser(description="Run experiment with config and CLI override")
     parser.add_argument('--config', type=str, required=True, help="Path to YAML config")
-    parser.add_argument('--datasets', nargs='+', required=True, help="List of datasets names")
-    parser.add_argument('--models', nargs='+', required=True, help="List of model names")
-    parser.add_argument('--embs', nargs='+', required=True, help="List of embeddings")
+    parser.add_argument('--datasets', nargs='+', help="List of datasets names")
+    parser.add_argument('--models', nargs='+', help="List of model names")
+    parser.add_argument('--embs', nargs='+', help="List of embeddings")
+    parser.add_argument('--optimizers', nargs='+', help="List of optimizers")
+    parser.add_argument('--arch_types', nargs='+', help="List of architectures")
     parser.add_argument('--exp-name', type=str, required=True, help="Name of this experiment")
+
     return parser.parse_args()
+
+
+def merge_config_with_cli(config, args):
+    """
+    Объединяет конфиг из YAML с аргументами CLI.
+    Значения из CLI имеют приоритет над значениями из конфига.
+    """
+    merged = config.copy()
+
+    merged["exp_name"] = args.exp_name
+    
+    if args.datasets is not None:
+        merged["dataset_names"] = args.datasets
+    if args.models is not None:
+        merged["model_names"] = args.models
+    if args.embs is not None:
+        merged["emb_names"] = args.embs
+    if args.optim_names is not None:
+        merged["optim_names"] = args.optim_names
+    if args.arch_types is not None:
+        merged["arch_types"] = args.arch_types
+
+    return merged
+
 
 def main():
     args = parse_args()
-    # Загрузим конфиг из yaml
+    
+    # Загружаем конфиг из YAML
     with open(args.config) as f:
         config = yaml.safe_load(f)
+    
+    # Объединяем конфиг с аргументами CLI
+    final_config = merge_config_with_cli(config, args)
 
-    # Datasest, models, embs — только из CLI!
-    dataset_names = args.datasets
-    model_names = args.models
-    emb_names = args.embs
-    exp_name = args.exp_name
-
-    # Остальное — из YAML
-    run_experiment(
-        project_name=config["project_name"],
-        dataset_names=dataset_names,         # <- CLI
-        model_names=model_names,             # <- CLI
-        emb_names=emb_names,                 # <- CLI
-        optim_names=config["optim_names"],
-        arch_types=config["arch_types"],
-        num_epochs=config["num_epochs"],
-        num_trials=config["num_trials"],
-        patience=config["patience"],
-        exp_name=exp_name                    # <- CLI
-    )
+    # Запускаем эксперимент
+    run_experiment(**final_config)
 
 if __name__ == "__main__":
     main()

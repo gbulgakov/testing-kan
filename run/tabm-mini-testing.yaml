@@ -1,6 +1,13 @@
+# Основные параметры эксперимента
 project_name: 'tabm-mini testing'
-num_epochs: 100
-num_trials: 70
-patience: 5
-arch_types: ["tabm-mini"]
-optim_names: ["adamw"]
+num_epochs: 100     # Количество эпох обучения
+num_trials: 70      # Количество trials для подбора гиперпараметров
+patience: 5         # Ранняя остановка после N эпох без улучшений
+
+# тип архитектуры
+arch_types: 
+  - tabm-mini
+
+# оптимайзер 
+optim_names:
+  - adamw
