@@ -13,13 +13,16 @@ import numpy as np
 from optimizers.ademamix import AdEMAMix
 from optimizers.muon import Muon
 from optimizers.mars import MARS
+from optimizers.sign import Signum
 
 # удобно для масшатбирования
 OPTIMIZERS = { 
               'adamw' : torch.optim.AdamW,
               'ademamix' : AdEMAMix,
               'mars' : MARS,
-              'muon' : Muon
+              'muon' : Muon,
+              'sign' : Signum,
+              'momentum_sign' : Signum
              }
 
 
@@ -165,8 +168,14 @@ def get_test_config(task_type, sweep_name):
 def get_optimizer(optim_name, model_params, config):
     optim_class = OPTIMIZERS[optim_name]
     optim_kwargs = {'lr' : config['lr']}
-    if optim_name != 'muon': # это на будущее
+
+    if optim_name != 'muon':        # для muon все параметры  -- muon_params
         optim_kwargs['weight_decay'] = config['weight_decay']
+    if optim_name == 'sign':
+        optim_kwargs['momentum'] = 0.9
+
+    if optim_name == 'muon':
+        model_params = list(model_params)
     return optim_class(model_params, **optim_kwargs)
  
 def clean_up_model(model, optimizer):
