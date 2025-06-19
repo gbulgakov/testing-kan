@@ -106,8 +106,8 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     model.to(device)
     model.train()
     train_loss = 0.0
-    pred = []
-    gt = [] # настоящие таргеты
+    correct = 0
+    total = 0
     start_time = time.time()
     
     loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
@@ -149,10 +149,12 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
         
         
         if task_type == 'binclass' or task_type == 'regression':
-            pred.append(output >= 0.5) # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
+            pred = (output >= 0.5).float() # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
         else:
-            pred.append(output.argmax(1)) # if multiclass then -> argmax over classes (pred (B, k) or (B))
-        gt.append(y_true)
+            pred = output.argmax(1) # if multiclass then -> argmax over classes (pred (B, k) or (B))
+        
+        correct += (pred == y_true).float().sum().item()
+        total += y_true.numel()
     scheduler.step()
 
     end_time = time.time()
@@ -160,11 +162,9 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
 
     # num_batches = dataset['train']['y'].shape[0] // batch_size + 1
     num_batches = len(loader)
-    pred = torch.cat(pred)
-    gt = torch.cat(gt) #(dataset_size, k) or (dataset_size)
+    train_accuracy = correct / total
     #accuracy is found as accuracy of mean prediction over k if model.share_training_batches==True
     # else accuracy of all predictions
-    train_accuracy = (pred == gt).float().mean().item()
 
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
@@ -177,8 +177,8 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     loader = dataset[part]
     # val_size = dataset['val']['X_num'].shape[0]
 
-    pred = []
-    gt = [] # настоящие таргеты
+    correct = 0
+    total = 0
 
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
@@ -217,21 +217,21 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
 
             #not needed for regression
             if task_type == 'binclass' or task_type == 'regression':
-                pred.append(output >= 0.5)
+                pred = (output >= 0.5).float()
                 #output >= 0.5 -> (B)
             else:
-                pred.append(output.argmax(1))  #multiclass
+                pred = output.argmax(1)  #multiclass
                 #output.argmax(1) -> (B)
+                        
+            correct += (pred == batch_data['y']).float().sum().item()
+            total += batch_data['y'].numel()
 
-            gt.append(batch_data['y'])
         end_time = time.time()
         val_time = end_time - start_time
         
     # num_batches = dataset[part]['y'].shape[0] // batch_size + 1
     num_batches = len(loader)
-    pred = torch.cat(pred)
-    gt = torch.cat(gt)
-    val_accuracy = (pred == gt).float().mean().item()
+    val_accuracy = correct / total
 
     return val_loss / num_batches, val_accuracy, val_time # с нормировкой
 
