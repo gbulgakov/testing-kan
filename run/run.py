@@ -8,7 +8,7 @@ import os
 def parse_args():
     parser = argparse.ArgumentParser(description="Run experiment with config and CLI override")
     parser.add_argument('--config', type=str, required=True, help="Path to YAML config")
-    parser.add_argument('--device', required=True, help="Visible device number")
+    parser.add_argument('--device', type=int, required=True, help="Visible device number")
     parser.add_argument('--datasets', nargs='+', help="List of datasets names")
     parser.add_argument('--models', nargs='+', help="List of model names")
     parser.add_argument('--embs', nargs='+', help="List of embeddings")
