@@ -15,9 +15,9 @@ TELEGRAM_TOKEN, GEORGY_ID, DANIL_ID = get_tokens()
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     for CHAT_ID in [GEORGY_ID, DANIL_ID]:
-        params = {"chat_id": CHAT_ID, "text": text}
+        params = {"chat_id": CHAT_ID, "text": text,  "parse_mode": "MarkdownV2"}
         requests.post(url, params=params)
-
+    
 def send_telegram_file(file_path):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
     for CHAT_ID in [GEORGY_ID, DANIL_ID]:

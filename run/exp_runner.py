@@ -10,17 +10,10 @@ import numpy as np
 from typing import Literal, Optional
 import pandas as pd
 import numpy as np
-import torch
 import pickle
 import wandb
 from IPython.display import clear_output
 wandb.login(key='936d887040f82c8da3d87f5207c4178259c7b922')
-
-from models.efficient_kan import KAN
-from models.fastkan import FastKAN
-from models.chebyshev_kan import ChebyKAN
-from models.mlp import MLP
-from models.prepare_model import model_init_preparation, ModelWithEmbedding
 
 from project_utils import utils
 from project_utils import datasets
@@ -28,9 +21,34 @@ from project_utils.tg_bot import send_telegram_file, send_telegram_message
 from project_utils.wandb_tuning import wandb_tuning
 from project_utils.wandb_testing import test_best_model
 
-# для удобного запуска
-import argparse
-import yaml
+from functools import wraps
+import traceback
+from datetime import datetime
+
+def telegram_error_notification(func):
+    """Декоратор для отправки ошибок в Telegram"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            
+            # Формируем подробное сообщение
+            error_msg = (
+                f"*❌ Ошибка*\n\n"
+                f"*Model:* `{kwargs.get('model_name', 'N/A')}`\n"
+                f"*Dataset:* `{kwargs.get('dataset_name', 'N/A')}`\n"
+                f"*Arch type:* `{kwargs.get('arch_type', 'N/A')}`\n"
+                f"*Embedding:* `{kwargs.get('emb_name', 'N/A')}`\n"
+                f"*Optimizer:* `{kwargs.get('optim_name', 'N/A')}`\n"
+                f"*Функция:* `{func.__name__}`\n\n"
+                f"*Ошибка:*\n```\n{str(e)}\n```\n\n"
+                f"*Traceback:* (нажмите ▶️)\n"
+                f"```\n{traceback.format_exc()}\n```"
+            )
+            send_telegram_message(error_msg)
+            raise  # Пробрасываем исключение дальше
+    return wrapper
 
 
 def run_single_model(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience):
@@ -65,8 +83,8 @@ def run_single_dataset(project_name, dataset_name,
                     stats = run_single_model(project_name, dataset_name, model_name, arch_type, emb_name, optim_name, dataset, num_epochs, num_trials, patience)
                     clear_output(wait=True)
                     pkl_logs[f'{model_name}_{arch_type}_{emb_name}_{optim_name}'] = stats
-                    send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}\
-                                          Test sweep_id {stats["sweep_id"]}')
+                    # send_telegram_message(f'✅ {model_name}_{arch_type}_{emb_name}_{optim_name} finished on {dataset_name}\
+                    #                       Test sweep_id {stats["sweep_id"]}')
 
     # with open(f'/home/no_prolactin/KAN/testing-kan/results/{dataset_name}.pkl', 'wb') as f:
     #     pickle.dump(pkl_logs, f)
@@ -88,12 +106,16 @@ def run_experiment(
     patience,
     exp_name
 ):
+    send_telegram_message(
+        f"🚀 *Запуск эксперимента*\n"
+        f"▫️ *Название:* `{exp_name}`\n"
+        f"▫️ *Время:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
+    )
     total_logs = {}
     results_dir = os.path.join(HOME, 'KAN', 'testing-kan', 'results')
 
     # Создаем директорию для результатов, если ее нет
     os.makedirs(results_dir, exist_ok=True)
-
     for dataset_name in dataset_names:
         logs = run_single_dataset(
                 project_name=project_name,
@@ -107,14 +129,14 @@ def run_experiment(
                 patience=patience
               )
         total_logs[dataset_name] = logs
-        send_telegram_message(f'✅ Finished on {dataset_name}')
+        # send_telegram_message(f'✅ Finished on {dataset_name}')
 
     # Сохраняем результаты с универсальным путем
     results_path = os.path.join(results_dir, f'{exp_name}.pkl')
     with open(results_path, 'wb') as f:
         pickle.dump(total_logs, f)
 
-    send_telegram_message(f'✅ Finished {exp_name}')
+    # send_telegram_message(f'✅ Finished {exp_name}')
     send_telegram_file(results_path)
     return total_logs
 
