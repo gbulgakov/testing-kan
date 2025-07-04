@@ -1,14 +1,11 @@
-from exp_runner import run_experiment
 import argparse
 import yaml
-import os
-
+from exp_runner import run_experiment
 
 # парсинг аргументов командной строки для запуска
 def parse_args():
     parser = argparse.ArgumentParser(description="Run experiment with config and CLI override")
     parser.add_argument('--config', type=str, required=True, help="Path to YAML config")
-    parser.add_argument('--device', type=int, required=True, help="Visible device number")
     parser.add_argument('--datasets', nargs='+', help="List of datasets names")
     parser.add_argument('--models', nargs='+', help="List of model names")
     parser.add_argument('--embs', nargs='+', help="List of embeddings")
@@ -27,7 +24,6 @@ def merge_config_with_cli(config, args):
     merged = config.copy()
 
     merged["exp_name"] = args.exp_name
-    merged["device"] = args.device
     
     if args.datasets is not None:
         merged["dataset_names"] = args.datasets
@@ -54,7 +50,6 @@ def main():
     final_config = merge_config_with_cli(config, args)
 
     # Запускаем эксперимент
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.device
     run_experiment(**final_config)
 
 if __name__ == "__main__":
