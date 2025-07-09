@@ -105,7 +105,7 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
         })
     elif model_name == 'k_net':
         params.update({
-            'num_layers' : {{'values' : [1, 2, 3, 4]}},   # скрытые слои
+            'num_layers' : {'values' : [1, 2, 3, 4]},   # скрытые слои
             'n' : {'values' : [4, 8, 16]},
             'ch' : {'values' : [2 ** i for i in range(4, 8)]},
             'T' : {'values' : [4, 8, 12]},
