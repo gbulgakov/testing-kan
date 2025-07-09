@@ -103,6 +103,14 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
             'kan_width' : {'values' : [2 ** i for i in range(3, 8)]},
             'degree' : {'values' : [i for i in range(1, 15)]} # попробуем такие степени
         })
+    elif model_name == 'k_net':
+        params.update({
+            'num_layers' : {{'values' : [1, 2, 3, 4]}},   # скрытые слои
+            'n' : {'values' : [4, 8, 16]},
+            'ch' : {'values' : [2 ** i for i in range(4, 8)]},
+            'T' : {'values' : [4, 8, 12]},
+            'ksize' : {'values' : [3, 5]}
+        })
     # elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
     #     params.update({
     #         'kan_layers' : {'values' : [1, 2, 3]}, 

@@ -8,6 +8,7 @@ from models.efficient_kan import KAN
 from models.fastkan import FastKAN
 from models.mlp import MLP
 from models.chebyshev_kan import ChebyKAN
+from models.kuromoto import KNet
 
 # модель с эмбеддингами
 class ModelWithEmbedding(nn.Module):
@@ -109,6 +110,20 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         layer_kwargs = {}
         dropout = (config['dropout'] if config['use_dropout'] else 0)
         backbone = MLP(layer_widths, dropout)
+
+    elif model_name == 'k_net':
+        layer_kwargs = dict(
+            n = config['n'],
+            ch = config['ch'],
+            T = config['T'],
+            ksize = config['ksize']
+        )
+        backbone = KNet(in_features=in_features, 
+                        out_features=out_features, 
+                        num_layers=config['num_layers'], 
+                        **layer_kwargs)
+        layer_widths = None
+        
         
     # ниже MLP и KAN соединены последовательно с шириной первого/последнего KAN слоя
     elif model_name == 'mlp_kan':
@@ -130,6 +145,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
             MLP(mlp_layer_widths, dropout)
         )
         layer_widths = kan_layer_widths + mlp_layer_widths
+
 
     # для некоторых эмбеддингов нужны все данные
     if emb_name not in ['none', 'periodic']:
