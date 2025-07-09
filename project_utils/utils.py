@@ -109,7 +109,8 @@ def get_sweep_config(model_name, emb_name, task_type, sweep_name):
             'n' : {'values' : [4, 8, 16]},
             'ch' : {'values' : [2 ** i for i in range(4, 8)]},
             'T' : {'values' : [4, 8, 12]},
-            'ksize' : {'values' : [3, 5]}
+            'ksize' : {'values' : [3, 5]},
+            'gamma' : params['lr']
         })
     # elif model_name == 'kan_mlp' or model_name == 'mlp_kan':
     #     params.update({

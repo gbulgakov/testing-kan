@@ -116,7 +116,8 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
             n = config['n'],
             ch = config['ch'],
             T = config['T'],
-            ksize = config['ksize']
+            ksize = config['ksize'],
+            gamma = config['gamma']
         )
         backbone = KNet(in_features=in_features, 
                         out_features=out_features, 

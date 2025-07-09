@@ -10,6 +10,34 @@ def reshape(x, n):
 def reshape_back(x):
   return einops.rearrange(x, 'b c n ... -> b (c n) ...')
 
+class ReadOutConv(nn.Module):
+    def __init__(
+        self,
+        inch,
+        outch,
+        ro_N,
+        kernel_size=1,
+        stride=1,
+        padding=0,
+    ):
+        super().__init__()
+        self.outch = outch
+        self.out_dim = ro_N
+        self.invconv = nn.Conv2d(
+            inch,
+            outch * ro_N,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+        )
+        self.bias = nn.Parameter(torch.zeros(outch))
+
+    def forward(self, x):
+        x = self.invconv(x).unflatten(1, (self.outch, -1))
+        x = torch.linalg.norm(x, dim=2) + self.bias[None, :, None, None]
+        return x
+
+
 class FeatureEncoder(nn.Module):
     def __init__(self, input_dim, output_channels=256, height=16, width=1):
         super().__init__()
@@ -136,7 +164,7 @@ class KBlock(nn.Module):
     for x, name in ((dt, 'dt'), (c, 'c'), (x, 'x')):
       print_norm(x, name)
 
-  def forward(self, x, c, T, gamma, del_t=1.0, return_xs=False, return_es=False, T_noc=None):
+  def forward(self, x, c, gamma, del_t=1.0, return_xs=False, return_es=False, T_noc=None):
     x = self.normalize(x)
     c = self.c_norm(c)
     xs = [x]
@@ -152,7 +180,7 @@ class KBlock(nn.Module):
       do_monitoring = False
       self.monitor_count += 1
 
-    for t in range(T):
+    for t in range(self.T):
       dxdt, dcdt = self.kconv(x, c)
       _c = c + gamma*del_t*dcdt
       c = self.normalize(_c, c)
@@ -176,6 +204,7 @@ class KNet(nn.Module):
                  in_features, 
                  out_features,
                  num_layers,
+                 gamma,
                  n=4, 
                  ch=32,
                  emb_len=16,
@@ -188,6 +217,7 @@ class KNet(nn.Module):
                  use_omega_c=True
     ):
         super().__init__()
+        self.gamma = gamma
 
         # Encoder to 2D format
         self.encoder = FeatureEncoder(in_features, output_channels=ch, height=emb_len)
@@ -197,14 +227,19 @@ class KNet(nn.Module):
         for i in range(num_layers):
            self.conv_layers.append(KBlock(n, ch, connectivity, T, ksize, init_omg, c_norm, use_omega, use_omega_c))
 
+        # Read Out module
+        self.readout = ReadOutConv(ch, ch, n, 1, 1, 0)
+
         # FC classifier or regressor
         self.fc_layer = nn.Linear(in_features=ch * emb_len, out_features=out_features)
         
 
     def forward(self, x):
        x = self.encoder(x)
+       c = self.readout(x)
        for conv_layer in self.conv_layers:
-          x = conv_layer(x)
+          x = conv_layer(x, gamma=self.gamma, c=c)[0]
+          c = self.readout(x)
        x = torch.flatten(x, start_dim=1)
        x = self.fc_layer(x)
        return x
