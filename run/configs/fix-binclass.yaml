@@ -1,0 +1,29 @@
+# Основные параметры эксперимента
+project_name: 'Fixing Binclass'
+num_epochs: 100     # Количество эпох обучения
+num_trials: 70      # Количество trials для подбора гиперпараметров
+patience: 5         # Ранняя остановка после N эпох без улучшений
+
+# Тип архитектуры
+arch_types: 
+  - plain
+
+# Оптимайзер 
+optim_names:
+  - adamw
+
+# Модели
+model_names:
+  - small_kan
+  - mlp
+  - fast_kan
+
+# Датасеты
+dataset_names:
+  - adult
+  - churn
+  - higgs-small
+  - santander
+  - classif-cat-large-0-road-safety
+  - classif-num-large-0-MiniBooNE
+

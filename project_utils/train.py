@@ -149,7 +149,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
         
         
         if task_type == 'binclass' or task_type == 'regression':
-            pred = (output >= 0.5).float() # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
+            pred = (output >= 0).float() # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
         else:
             pred = output.argmax(1) # if multiclass then -> argmax over classes (pred (B, k) or (B))
         
@@ -217,7 +217,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
 
             #not needed for regression
             if task_type == 'binclass' or task_type == 'regression':
-                pred = (output >= 0.5).float()
+                pred = (output >= 0).float()
                 #output >= 0.5 -> (B)
             else:
                 pred = output.argmax(1)  #multiclass
