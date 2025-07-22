@@ -1,6 +1,6 @@
 import argparse
 import yaml
-from scripts.run_experiment import run_experiment
+from run_experiment import run_experiment
 
 # парсинг аргументов командной строки для запуска
 def parse_args():
