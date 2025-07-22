@@ -1,14 +1,10 @@
 import time
-from typing import Dict, Optional, Union
 
 import torch
-import torch.nn as nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
-import wandb
-# import delu пока 
 
-from project_utils.utils import count_parameters, compare_epochs
+from src.testing_kan.utils import count_parameters, compare_epochs
 
 # Словарь размеров батчей для разных датасетов
 BATCH_SIZES = {
@@ -37,24 +33,6 @@ BATCH_SIZES = {
     'regression-cat-large-0-nyc-taxi-green-dec-2016' : 1024,
     'regression-cat-large-0-particulate-matter-ukair-2017' : 1024
 }
-
-
-# def get_batches_indices(model, arch_type: str, part: str, batch_size: int, data_size, device) -> torch.Tensor:
-#     if arch_type != 'plain' and part == 'train':
-#         batches = (
-#         torch.randperm(data_size, device=device).split(batch_size)
-#         if model.share_training_batches
-#         else [
-#             x.transpose(0, 1).flatten()
-#             for x in torch.rand((model.k, data_size), device=device)
-#             .argsort(dim=1)
-#             .split(batch_size, dim=1)
-#         ]
-#         )
-#     else:
-#         batches = torch.randperm(data_size, device=device).split(batch_size)
-#     return batches
-
 
 def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
     if arch_type != 'plain':
@@ -111,14 +89,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     start_time = time.time()
     
     loss_fn = get_loss_fn(arch_type, base_loss_fn, task_type, model.share_training_batches)
-    # batches = get_batches_indices(model, arch_type, 'train', batch_size, train_size, device=device) # это индексы
 
-    # for batch_indices in batches:
-    #     # для удобства
-    #     batch_data = {
-    #         key: dataset['train'][key][batch_indices].to(device)
-    #         for key in dataset['train'].keys()
-    #     }
     for (X_num, X_cat, y) in loader:
         X_num = X_num.to(device)
         X_cat = X_cat.to(device)
@@ -160,7 +131,6 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     end_time = time.time()
     epoch_time = end_time - start_time
 
-    # num_batches = dataset['train']['y'].shape[0] // batch_size + 1
     num_batches = len(loader)
     train_accuracy = correct / total
     #accuracy is found as accuracy of mean prediction over k if model.share_training_batches==True
@@ -169,8 +139,6 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
     return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
     
 def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
-    # for key, tensor in dataset[part].items():
-    #     dataset[part][key] = tensor.to(device) #overkill, скорее всего нужно сделать умнее
     model.eval()
     model.to(device)
     val_loss = 0.0
@@ -180,25 +148,13 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     correct = 0
     total = 0
 
-    dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
-    batch_size = BATCH_SIZES[dataset_name]
     
-    # batches = get_batches_indices(model, model_name, part, batch_size, val_size, device='cpu') # это индексы
     loss_fn = get_loss_fn(model_name, base_loss_fn, task_type, model.share_training_batches)
-
-    # мб стоит оптимизировать
-    # if task_type == 'multiclass':
-    #     dataset[part]['y'] = dataset[part]['y'].long()
     
     with torch.no_grad():
         start_time = time.time()
-        # for batch_indices in batches:
-        #     # для удобства
-        #     batch_data = {
-        #         key: dataset[part][key][batch_indices].to(device)
-        #         for key in dataset[part].keys()
-        #     }
+
         for (X_num, X_cat, y) in loader:
             X_num = X_num.to(device)
             X_cat = X_cat.to(device)
@@ -244,19 +200,12 @@ def train(
     model.to(device)
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
-    # batch_size = BATCH_SIZES[dataset_name]
-
-    '''REMINDER: Это и так сделано в обработке датасетов'''
-    # приведение к long можно сделать 1 раз, а не на каждой эпохе
-    # if task_type == 'multiclass':
-    #     dataset['train']['y'] = dataset['train']['y'].long()
 
     train_times = []
     val_times = [] # времена инференса можно замерять и на val!
 
     val_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
     test_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
-    test_real_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
 
     remaining_patience = patience
     total_epochs = 0
@@ -267,22 +216,7 @@ def train(
         # тестируем и валидируем
         val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
         test_loss, test_acc, test_time = validate(model, device, dataset, base_loss_fn, 'test', model_name, arch_type)
- 
-        # логируем
-        logs = {
-            'epoch' : epoch + 1,
-            'train_loss' : train_loss,
-            'val_loss' : val_loss,
-            'test_loss' : test_loss,
-            'lr' : scheduler.get_last_lr()[0]
-        }
-        if task_type != 'regression':
-            logs.update({
-                'train_acc' : train_acc,
-                'val_acc' : val_acc,
-                'test_acc' : test_acc
-            })
-        wandb.log(logs)
+
         train_times.append(train_time)
         val_times.append(val_time)
 
@@ -301,11 +235,6 @@ def train(
         if compare_epochs(task_type, test_epoch, test_best_epoch):
             test_best_epoch = test_epoch
 
-    '''REMINDER: Добавил фичей в info'''
-    # размерность входа backbone
-    # in_features = dataset['train']['X_num'].shape[1]  # Количество числовых признаков
-    # if 'X_cat' in dataset['train']:
-    #     in_features += dataset['train']['X_cat'].shape[1]  # Добавляем категориальные признаки
 
     final_logs = {
         'train_epoch_time' : sum(train_times) / total_epochs,
@@ -326,17 +255,5 @@ def train(
             'val_best_acc' : val_best_epoch['acc'],
             'test_best_acc' : test_best_epoch['acc']
         })
-    
-    wandb.log(final_logs)
 
-    return (
-        total_epochs,
-        sum(train_times) / total_epochs,  # Среднее время обучения
-        sum(val_times) / total_epochs,    # Среднее время валидации
-        test_best_epoch['loss'],    # Лучшие потери на тесте
-        test_best_epoch['acc'],     # Лучшая точность на тесте
-        test_best_epoch['epoch'],   # Лучшая эпоха на тесте
-        test_real_epoch['loss'],    # Финальная! потери на тесте
-        test_real_epoch['acc'],     # Финальная! точность на тесте
-        test_real_epoch['epoch'],   # Финальная! эпоха на тесте
-    )
+    return final_logs

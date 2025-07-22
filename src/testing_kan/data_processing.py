@@ -1,15 +1,13 @@
 import shutil
 import zipfile
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
-from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from pathlib import Path
-import os
-import pickle
 import json
 import torch
-from torch.utils.data import Dataset, DataLoader, TensorDataset
-from torch.utils.data.sampler import Sampler, BatchSampler
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import BatchSampler
 import numpy as np
+
 BATCH_SIZES = {
     'gesture': 128,
     'churn': 128,
@@ -230,11 +228,5 @@ def load_dataset(name, zip_path=None):
         
         # Удаляем временную директорию
         shutil.rmtree(temp_dir)
-    
-    # dataset = get_dataloaders(data, num_workers=num_workers)
-    # dataset['info'] = data['info']
-    # return dataset
-    #
-    #Перенес get_dataloaders вне datasets.py т.к. теперь его применение требует знания k, arch_type
     
     return data
