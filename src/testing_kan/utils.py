@@ -3,11 +3,10 @@ import os
 import gc
 import yaml
 import torch
-from optimizers.ademamix import AdEMAMix
-from optimizers.muon import Muon
-from optimizers.mars import MARS
-from optimizers.sign import Signum
-
+from .optimizers.ademamix import AdEMAMix
+from .optimizers.muon import Muon
+from .optimizers.mars import MARS
+from .optimizers.sign import Signum
 # удобно для масшатбирования
 OPTIMIZERS = { 
               'adamw' : torch.optim.AdamW,
@@ -37,8 +36,21 @@ def create_zip_archive(source_dir, archive_path):
                 # что в архиве не будет лишних путей (только имя файла).
                 zipf.write(file_path, arcname=filename)
 
-def load_secrets(secrets_path='/testing-kan/secrets.yaml'):
+def load_secrets():
     """Загружает секреты из YAML-файла."""
+    current_file_path = os.path.abspath(__file__)
+
+    # Шаг 2: Находим папку, где лежит utils.py
+    # os.path.dirname() "отрезает" имя файла и оставляет только путь к папке.
+    current_dir = os.path.dirname(current_file_path)
+
+    # Шаг 3: Поднимаемся на два уровня вверх, чтобы добраться до корня проекта
+    # utils.py -> testing_kan -> src -> testing-kan (корень)
+    # Нам нужно подняться от папки `testing_kan` и от папки `src`
+    project_root = os.path.dirname(os.path.dirname(current_dir))
+
+    # Шаг 4: Строим полный путь к файлу secrets.yaml
+    secrets_path = os.path.join(project_root, 'secrets.yaml')
     with open(secrets_path, 'r') as f:
         return yaml.safe_load(f)
 

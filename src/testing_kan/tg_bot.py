@@ -1,5 +1,5 @@
 import requests
-from utils import load_secrets
+from .utils import load_secrets
 
 secrets = load_secrets()
 TELEGRAM_TOKEN = secrets.get('telegram', {}).get('bot_token')
