@@ -93,11 +93,11 @@ class Logger:
 
         # Создаем колонки с отформатированными строками "среднее ± стд. отклонение".
         df['performance_str'] = df.apply(
-            lambda row: f"{row['test_metric_mean']:.3f} + {row['test_metric_std']:.3f}", axis=1)
+            lambda row: f"{row['metric']:.3f} + {row['metric_std']:.3f}", axis=1)
         df['train_time_str'] = df.apply(
-            lambda row: f"{row['train_epoch_time_mean']:.3f} + {row['train_epoch_time_std']:.3f}", axis=1)
+            lambda row: f"{row['full_train_time']:.3f} + {row['full_train_time_std']:.3f}", axis=1)
         df['inference_time_str'] = df.apply(
-            lambda row: f"{row['val_epoch_time_mean']:.3f} + {row['val_epoch_time_std']:.3f}", axis=1)
+            lambda row: f"{row['val_epoch_time']:.3f} + {row['val_epoch_time_std']:.3f}", axis=1)
 
         # Создаем "красивые" названия колонок для датасетов.
         df['dataset_pretty'] = df['dataset'].apply(

@@ -52,7 +52,19 @@ def load_secrets():
     # Шаг 4: Строим полный путь к файлу secrets.yaml
     secrets_path = os.path.join(project_root, 'secrets.yaml')
     with open(secrets_path, 'r') as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+
+        # Получаем список словарей
+    telegram_list = data.get('telegram', [])
+    
+    # Преобразуем список в один словарь
+    telegram_secrets = {}
+    for item in telegram_list:
+        telegram_secrets.update(item)
+    
+    # Возвращаем данные в удобном формате
+    return {'telegram': telegram_secrets}
+
 
 def seed_everything(seed=0):
     import random

@@ -124,7 +124,6 @@ def run_single_dataset(
 
 def run_experiment(
     *,
-    project_name,
     dataset_names,
     model_names,
     emb_names,
@@ -141,13 +140,12 @@ def run_experiment(
         f"▫️ *Время:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
     )
     # Logger
-    results_dir = os.path.join(HOME, 'KAN', 'testing-kan', 'results')
+    results_dir = os.path.join(HOME, 'KAN', 'testing-kan', 'results', exp_name)
     logger = Logger(results_dir, exp_name)
 
     # Запуски
     for dataset_name in dataset_names:
         run_single_dataset(
-            project_name=project_name,
             dataset_name=dataset_name,
             optim_names=optim_names,
             emb_names=emb_names,

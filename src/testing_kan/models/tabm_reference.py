@@ -5,12 +5,12 @@
 
 import itertools
 from typing import Any, Literal
-from models.fastkan import FastKAN, FastKANLayer
-from models.chebyshev_kan import ChebyKAN, ChebyKANLayer
-from models.efficient_kan import KAN, KANLinear, _NKANLinear
-from models.fastkan import SplineLinear, _NFastKANLayer
-from models.fastkan import RadialBasisFunction
-from models.mlp import MLP
+from .fastkan import FastKAN, FastKANLayer
+from .chebyshev_kan import ChebyKAN, ChebyKANLayer
+from .efficient_kan import KAN, KANLinear, _NKANLinear
+from .fastkan import SplineLinear, _NFastKANLayer
+from .fastkan import RadialBasisFunction
+from .mlp import MLP
 import rtdl_num_embeddings
 import torch
 import torch.nn as nn

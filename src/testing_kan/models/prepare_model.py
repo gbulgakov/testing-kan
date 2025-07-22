@@ -4,11 +4,11 @@ from typing import Optional
 from torch import Tensor
 import torch.nn.functional as F
 import rtdl_num_embeddings
-from models.efficient_kan import KAN
-from models.fastkan import FastKAN
-from models.mlp import MLP
-from models.chebyshev_kan import ChebyKAN
-from models.kuromoto import KNet
+from .efficient_kan import KAN
+from .fastkan import FastKAN
+from .mlp import MLP
+from .chebyshev_kan import ChebyKAN
+from .kuromoto import KNet
 
 # модель с эмбеддингами
 class ModelWithEmbedding(nn.Module):
@@ -108,7 +108,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     elif model_name == 'mlp':
         layer_widths = [in_features] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [out_features]
         layer_kwargs = {}
-        dropout = (config['dropout'] if config['use_dropout'] else 0)
+        dropout = config['dropout']
         backbone = MLP(layer_widths, dropout)
 
     elif model_name == 'k_net':
@@ -130,7 +130,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     elif model_name == 'mlp_kan':
         mlp_layer_widths = [in_features] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [config['kan_width']]
         kan_layer_widths = [config['kan_width']] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
-        dropout = (config['dropout'] if config['use_dropout'] else 0)
+        dropout = config['dropout']
         backbone = nn.Sequential(
             MLP(mlp_layer_widths, dropout),
             KAN(kan_layer_widths, grid_size=config['grid_size'], batch_norm=False)
@@ -140,7 +140,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     elif model_name == 'kan_mlp':
         kan_layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [config['kan_width']]
         mlp_layer_widths = [config['kan_width']] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [out_features]
-        dropout = (config['dropout'] if config['use_dropout'] else 0)
+        dropout = config['dropout']
         backbone = nn.Sequential(
             KAN(kan_layer_widths, grid_size=config['grid_size'], batch_norm=False),
             MLP(mlp_layer_widths, dropout)

@@ -6,10 +6,10 @@ import optuna
 from optuna.samplers import RandomSampler
 
 from src.testing_kan.utils import get_optimizer, clean_up_model
-from pipelines.train import train
+from .train import train
 from src.testing_kan.data_processing import get_dataloaders
-from models.prepare_model import model_init_preparation, ModelWithEmbedding
-from models.tabm_reference import Model
+from src.testing_kan.models.prepare_model import model_init_preparation
+from src.testing_kan.models.tabm_reference import Model
 
 
 def suggest_params(trial, model_name, emb_name):
@@ -21,12 +21,12 @@ def suggest_params(trial, model_name, emb_name):
         params['mlp_layers'] = trial.suggest_int('mlp_layers', 1, 4)
         params['mlp_width'] = trial.suggest_categorical('mlp_width', [2 ** i for i in range(1, 11)])
         # Придаем dropout вероятность 0.7
-        if trial.suggest_float('use_dropout_prob', 0.0, 1.0) < 0.7:
-            params['use_dropout'] = True
+        use_dropout = trial.suggest_float('use_dropout_decision', 0.0, 1.0) < 0.7    
+        if use_dropout:
+            params['dropout'] = trial.suggest_float('dropout', 0.05, 0.5, step=0.05)
         else:
-            params['use_dropout'] = False
-        params['dropout'] = trial.suggest_categorical('dropout', [i / 100 for i in range(0, 55, 5)])
-
+            params['dropout'] = trial.suggest_float('dropout', 0.0, 0.0)  # Значение 0 при выключенном dropout
+        
     elif model_name == 'kan':
         params['kan_layers'] = trial.suggest_int('kan_layers', 1, 5)
         params['kan_width'] = trial.suggest_categorical('kan_width', [2 ** i for i in range(1, 8)])

@@ -3,10 +3,10 @@ import torch
 from pathlib import Path
 
 from src.testing_kan.utils import get_optimizer, seed_everything, clean_up_model
-from pipelines.train import train
+from .train import train
 from src.testing_kan.data_processing import get_dataloaders
-from models.prepare_model import model_init_preparation
-from models.tabm_reference import Model
+from src.testing_kan.models.prepare_model import model_init_preparation
+from src.testing_kan.models.tabm_reference import Model
 
 def collect_hyperparams(best_params, model_name, emb_name):
     if model_name == 'mlp':
@@ -121,9 +121,9 @@ def test_best_model(
         
         val_epoch_times.append(final_logs['val_epoch_time'])
         train_epoch_times.append(final_logs['train_epoch_time'])
-        train_full_times.append(final_logs['total_epochs'] * final_logs['train_epoch_time'])
+        train_full_times.append(final_logs['num_epochs'] * final_logs['train_epoch_time'])
         best_test_epochs.append(final_logs['test_best_epoch'])
-        train_epochs.append(final_logs['total_epochs'])
+        train_epochs.append(final_logs['num_epochs'])
         num_params = final_logs['num_params']
 
     # ключевые метрики для удобства
