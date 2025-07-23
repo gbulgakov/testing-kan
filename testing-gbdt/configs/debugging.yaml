@@ -1,0 +1,29 @@
+project_name: 'testing tress'
+num_trials: 70
+
+model_names:
+  - catboost
+
+dataset_names:
+  # Стандартные датасеты
+  - adult          # Adult Census Income
+  - gesture         # Gesture Phase Segmentation
+  - california      # California Housing
+  - churn           # Customer Churn Prediction
+  - house           # House Price Prediction
+  - diamond         # Diamond Prices
+
+  - higgs-small     # Упрощенная версия Higgs Boson
+  - black-friday    # Black Friday Purchases
+  - fb-comments     # Facebook Comment Volume
+
+  # - otto 
+  # - santander
+
+  # - regression-num-large-0-year
+  # - regression-cat-large-0-particulate-matter-ukair-2017
+  # - regression-cat-large-0-nyc-taxi-green-dec-2016
+  # - classif-cat-large-0-road-safety
+  # - regression-num-medium-0-medical_charges
+  # - classif-num-large-0-MiniBooNE
+  # - microsoft

@@ -1,0 +1,16 @@
+wandb_version: 1
+
+colsample_bytree:
+  value: 0.6816386728819602
+learning_rate:
+  value: 0.02287715367977954
+min_child_samples:
+  value: 49
+min_child_weight:
+  value: 1.0313703332199904
+num_leaves:
+  value: 42
+reg_lambda:
+  value: 2.6187580161013546
+subsample:
+  value: 0.5466103585237109

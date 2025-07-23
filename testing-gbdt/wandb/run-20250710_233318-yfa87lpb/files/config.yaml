@@ -1,0 +1,81 @@
+_wandb:
+    value:
+        cli_version: 0.19.11
+        m: []
+        python_version: 3.11.12
+        t:
+            "1":
+                - 1
+                - 5
+                - 6
+                - 7
+                - 8
+                - 53
+                - 55
+            "2":
+                - 1
+                - 5
+                - 6
+                - 7
+                - 8
+                - 53
+                - 55
+            "3":
+                - 2
+                - 14
+                - 15
+                - 16
+                - 23
+                - 55
+            "4": 3.11.12
+            "5": 0.19.11
+            "8":
+                - 5
+            "12": 0.19.11
+            "13": linux-x86_64
+bagging_temperature:
+    value: 0.5653552903132139
+depth:
+    value: 10
+l2_leaf_reg:
+    value: 0.22256002949882664
+leaf_estimation_iterations:
+    value: 3.756413683245623
+learning_rate:
+    value: 0.013016625549446648
+method:
+    value: random
+metric:
+    value:
+        goal: maximize
+        name: val_acc
+name:
+    value: tuning catboost on adult
+parameters:
+    value:
+        bagging_temperature:
+            distribution: uniform
+            max: 1
+            min: 0
+        depth:
+            values:
+                - 3
+                - 4
+                - 5
+                - 6
+                - 7
+                - 8
+                - 9
+                - 10
+        l2_leaf_reg:
+            distribution: uniform
+            max: 10
+            min: 0.1
+        leaf_estimation_iterations:
+            distribution: uniform
+            max: 10
+            min: 1
+        learning_rate:
+            distribution: log_uniform_values
+            max: 1
+            min: 0.001

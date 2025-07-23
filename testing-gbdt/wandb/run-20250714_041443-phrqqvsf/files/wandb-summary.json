@@ -1,0 +1,1 @@
+{"_step":0,"in_features":50,"_timestamp":1.7524557007595637e+09,"train_time":16.084178924560547,"val_accuracy":0.9397014060008697,"_runtime":16.949322498,"_wandb":{"runtime":16},"val_time":0.05389881134033203,"test_accuracy":0.9362072178396174,"out_features":1}

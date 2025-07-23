@@ -1,0 +1,37 @@
+{
+  "os":  "Linux-5.15.0-125-generic-x86_64-with-glibc2.31",
+  "python":  "CPython 3.11.12",
+  "startedAt":  "2025-07-14T01:31:35.670965Z",
+  "args":  [
+    "--config",
+    "configs/debugging.yaml",
+    "--exp-name",
+    "testing-catboost"
+  ],
+  "program":  "/home/prolactin/KAN/testing-kan/testing-gbdt/run_gbdt.py",
+  "codePath":  "testing-gbdt/run_gbdt.py",
+  "git":  {
+    "remote":  "git@github.com:gbulgakov/testing-kan",
+    "commit":  "6c7bde097c59dbaffb848493d2845d7a8142b311"
+  },
+  "email":  "georgiy.bulgakov@gmail.com",
+  "root":  "/home/prolactin/KAN/testing-kan/testing-gbdt",
+  "host":  "opt-mipt",
+  "executable":  "/home/prolactin/miniconda3/envs/kan_project/bin/python",
+  "codePathLocal":  "run_gbdt.py",
+  "cpu_count":  48,
+  "cpu_count_logical":  48,
+  "disk":  {
+    "/":  {
+      "total":  "142597365760",
+      "used":  "57183436800"
+    }
+  },
+  "memory":  {
+    "total":  "541031411712"
+  },
+  "cpu":  {
+    "count":  48,
+    "countLogical":  48
+  }
+}

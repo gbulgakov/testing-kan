@@ -1,0 +1,12 @@
+wandb_version: 1
+
+bagging_temperature:
+  value: 0.8793595584700978
+depth:
+  value: 6
+l2_leaf_reg:
+  value: 4.003175299441752
+leaf_estimation_iterations:
+  value: 2
+learning_rate:
+  value: 0.051325234096819224

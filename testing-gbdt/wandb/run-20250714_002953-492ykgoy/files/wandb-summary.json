@@ -1,0 +1,1 @@
+{"out_features":1,"_wandb":{"runtime":16},"_runtime":16.860851617,"in_features":90,"val_loss":0.7192787664072928,"train_time":16.137062311172485,"test_loss":0.740986401571858,"_timestamp":1.7524422099439325e+09,"_step":0,"val_time":0.024164676666259766}

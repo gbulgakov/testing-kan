@@ -1,0 +1,12 @@
+wandb_version: 1
+
+bagging_temp:
+  value: 0.07932403759356665
+depth:
+  value: 5.33317581448586
+l2_leaf_reg:
+  value: 7.0507503719997375
+leaf_est_iterations:
+  value: 4.906344503624089
+learning_rate:
+  value: 0.045435453642407427
