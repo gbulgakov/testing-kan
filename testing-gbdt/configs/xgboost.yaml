@@ -8,14 +8,14 @@ dataset_names:
   # Стандартные датасеты
   - adult          # Adult Census Income
   - gesture         # Gesture Phase Segmentation
-  - california      # California Housing
-  - churn           # Customer Churn Prediction
-  - house           # House Price Prediction
-  - diamond         # Diamond Prices
+  # - california      # California Housing
+  # - churn           # Customer Churn Prediction
+  # - house           # House Price Prediction
+  # - diamond         # Diamond Prices
 
-  - higgs-small     # Упрощенная версия Higgs Boson
-  - black-friday    # Black Friday Purchases
-  - fb-comments     # Facebook Comment Volume
+  # - higgs-small     # Упрощенная версия Higgs Boson
+  # - black-friday    # Black Friday Purchases
+  # - fb-comments     # Facebook Comment Volume
 
   # - otto 
   # - santander

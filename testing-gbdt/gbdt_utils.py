@@ -211,22 +211,25 @@ def model_init_preparation(config, dataset, model_name):
             'booster': 'gbtree',
             'n_estimators': 2000,
             'n_jobs': -1,
-            'tree_method': 'gpu_hist'
+            'tree_method': 'hist',
+            'device': 'cuda',
+            'early_stopping_rounds': 50,
         }
         merge_sampled_parameters(model_kwargs, model_config)
         fit_kwargs = {'verbose': False,
-                      'early_stopping_rounds': 50}
+                      'eval_set': [(dataset['val']['X'], dataset['val']['y'])]}
         if task_type == 'regression':
             model = XGBRegressor(**model_kwargs)
             predict = model.predict
         else:
-            model = XGBClassifier(**model_kwargs, disable_default_eval_metric=True)
             if task_type == 'multiclass':
+                model_kwargs['eval_metric'] = 'merror'
+                model = XGBClassifier(**model_kwargs, disable_default_eval_metric=True)
                 predict = model.predict_proba
-                fit_kwargs['eval_metric'] = 'merror'
             else:
+                model_kwargs['eval_metric'] = 'error'
+                model = XGBClassifier(**model_kwargs, disable_default_eval_metric=True)
                 predict = lambda x: model.predict_proba(x)[:, 1]  # type: ignore[code]  # noqa
-                fit_kwargs['eval_metric'] = 'error'
     if model_name == 'lightgbm':
         model_kwargs = {
             'n_estimators': 2000,

@@ -102,7 +102,7 @@ def test_best_model(
     # Аггрегированные stats (как в оригинальном коде)
     stats = {
         'model_name': model_name,
-        'real_metric': np.mean(metrics),
+        'metric': np.mean(metrics),
         'metric_std': np.std(metrics),
         'direction': direction,
         'full_train_time': np.mean(train_times),

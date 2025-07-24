@@ -69,7 +69,6 @@ def make_objective(
             fit_kwargs=fit_kwargs,
             predict=predict
         )
-        clean_up_model(model)
         return final_logs[metric]
     
     return objective

@@ -14,7 +14,7 @@ from IPython.display import clear_output
 from gbdt_utils import load_dataset
 from src.testing_kan.utils import create_zip_archive
 from src.testing_kan.tg_bot import send_telegram_file, send_telegram_message
-from src.testing_kan.logger import Logger
+from logger import Logger
 from tuning import tune
 from testing import test_best_model
 # from wandb_tuning import wandb_tuning
