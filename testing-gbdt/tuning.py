@@ -38,8 +38,8 @@ def train(dataset, model, fit_kwargs, predict):
             val_pred = val_predict.argmax(1)
             test_pred = test_predict.argmax(1)
         if task_type == 'binclass':
-            val_pred = (val_predict >= 0)
-            test_pred = (test_predict >= 0)
+            val_pred = (val_predict >= 0.5)
+            test_pred = (test_predict >= 0.5)
         val_correct = (val_pred == dataset['val']['y']).sum()
         test_correct = (test_pred == dataset['test']['y']).sum()
         val_accuracy = val_correct / dataset['val']['y'].size
