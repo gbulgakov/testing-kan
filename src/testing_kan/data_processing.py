@@ -108,7 +108,7 @@ def get_dataloader(model, part: str, batch_size: int, dataset: Dataset, device: 
     )
 
 # это для получения даталоадеров потом 
-def get_dataloaders(dataset, model, device, num_workers=4):
+def get_dataloaders(dataset, model, device, num_workers=0):
     dataset_name = dataset['info']['id'].split('--')[0]
     dataloaders = {}
     for part in ['train', 'test', 'val']:

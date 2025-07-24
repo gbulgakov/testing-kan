@@ -95,7 +95,7 @@ def test_best_model(
             dataset=dataset,
             model=model,
             device=device,
-            num_workers=4)
+            num_workers=0)
         real_dataset['info'] = dataset['info']
 
         final_logs = train(
