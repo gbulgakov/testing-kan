@@ -66,7 +66,7 @@ class Logger:
         return obj
     
     def _save_as_json(self):
-        """Сохраняет полные результаты в JSON, добавляя к существующим данным вместо перезаписи."""
+        """Сохраняет полные результаты в JSON, заменяя старые записи новыми по ключам (dataset, model)."""
         import json
 
         json_path = os.path.join(self.results_dir, f'{self.exp_name}_results.json')
@@ -81,19 +81,32 @@ class Logger:
         else:
             existing_data = {}
 
-        # Преобразуем existing_data в defaultdict(list) для удобства добавления
-        combined_data = defaultdict(list)
-        # Заполняем из существующих данных
+        # Преобразуем existing_data в словарь для быстрого поиска по (dataset, model)
+        # Структура: {dataset: {model: run_dict}}
+        indexed_data = {}
+
         for dataset_name, runs in existing_data.items():
-            combined_data[dataset_name].extend(runs)
+            indexed_data.setdefault(dataset_name, {})
+            for run in runs:
+                model_name = run.get('model')
+                if model_name is not None:
+                    indexed_data[dataset_name][model_name] = run
 
-        # Добавляем текущие результаты self.raw_results
+        # Теперь проходим по новым результатам и заменяем или добавляем
         for run in self.raw_results:
-            combined_data[run['dataset']].append(run)
+            dataset_name = run['dataset']
+            model_name = run.get('model')
+            if dataset_name not in indexed_data:
+                indexed_data[dataset_name] = {}
+            # Заменяем старую запись или добавляем новую
+            indexed_data[dataset_name][model_name] = run
 
-        # Сохраняем обратно, приводя defaultdict к dict
+        # Преобразуем обратно в структуру {dataset: list_of_runs}
+        combined_data = {ds: list(models.values()) for ds, models in indexed_data.items()}
+
+        # Сохраняем обратно в файл, приводя данные к json-friendly типам
         with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(self._make_json_safe(dict(combined_data)), f, ensure_ascii=False, indent=4)
+            json.dump(self._make_json_safe(combined_data), f, ensure_ascii=False, indent=4)
 
     def _save_as_csv(self):
         """Создает CSV файлы по метрике, времени обучения и инференса."""

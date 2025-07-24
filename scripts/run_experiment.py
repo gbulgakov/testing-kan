@@ -120,6 +120,7 @@ def run_single_dataset(
                         optim_name=optim_name,
                         stats=stats
                     )
+                    logger.save()
 
 
 def run_experiment(
