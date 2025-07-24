@@ -111,7 +111,7 @@ def make_objective(
             dataset=dataset,
             model=model,
             device=device,
-            num_workers=0)
+            num_workers=4)
         real_dataset['info'] = dataset['info']
 
         # Обучение

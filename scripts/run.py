@@ -1,5 +1,13 @@
 import argparse
 import yaml
+import os
+
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+
+import torch
+torch.set_num_threads(1)
+
 from run_experiment import run_experiment
 
 # парсинг аргументов командной строки для запуска
