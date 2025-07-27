@@ -73,80 +73,29 @@ class Logger:
         return obj
     
     def _save_as_json(self):
-        """Сохраняет полные результаты в JSON, заменяя старые записи новыми по ключам (dataset, model)."""
-        import json
-
+        """
+        Сохраняет все накопленные результаты в JSON-файл.
+        Результаты группируются по имени датасета.
+        """
         json_path = os.path.join(self.results_dir, f'{self.exp_name}_results.json')
+        
+        # Группируем результаты по ключу 'dataset'
+        results_by_dataset = defaultdict(list)
+        for run_data in self.raw_results:
+            dataset_name = run_data.get('dataset', 'unknown_dataset')
+            results_by_dataset[dataset_name].append(run_data)
 
-        # Загружаем существующие данные, если файл есть
-        if os.path.isfile(json_path):
-            with open(json_path, 'r', encoding='utf-8') as f:
-                try:
-                    existing_data = json.load(f)
-                except json.JSONDecodeError:
-                    existing_data = {}
-        else:
-            existing_data = {}
+        # Преобразуем в обычный словарь и делаем типы данных безопасными для JSON
+        final_data = self._make_json_safe(dict(results_by_dataset))
 
-        # Преобразуем existing_data в словарь для быстрого поиска по (dataset, model)
-        # Структура: {dataset: {model: run_dict}}
-        indexed_data = {}
-
-        for dataset_name, runs in existing_data.items():
-            indexed_data.setdefault(dataset_name, {})
-            for run in runs:
-                model_name = run.get('model')
-                if model_name is not None:
-                    indexed_data[dataset_name][model_name] = run
-
-        # Теперь проходим по новым результатам и заменяем или добавляем
-        for run in self.raw_results:
-            dataset_name = run['dataset']
-            model_name = run.get('model')
-            if dataset_name not in indexed_data:
-                indexed_data[dataset_name] = {}
-            # Заменяем старую запись или добавляем новую
-            indexed_data[dataset_name][model_name] = run
-
-        # Преобразуем обратно в структуру {dataset: list_of_runs}
-        combined_data = {ds: list(models.values()) for ds, models in indexed_data.items()}
-
-        # Сохраняем обратно в файл, приводя данные к json-friendly типам
+        # Сохраняем в файл с красивым форматированием
         with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(self._make_json_safe(combined_data), f, ensure_ascii=False, indent=4)
+            json.dump(final_data, f, ensure_ascii=False, indent=4)
+        
+        print(f"-> JSON-отчет сохранен в: {json_path}")
 
-    
-    # def _save_as_json(self):
-    #     """Сохраняет полные результаты в JSON, добавляя к существующим данным вместо перезаписи."""
-    #     import json
 
-    #     json_path = os.path.join(self.results_dir, f'{self.exp_name}_results.json')
-
-    #     # Загружаем существующие данные, если файл есть
-    #     if os.path.isfile(json_path):
-    #         with open(json_path, 'r', encoding='utf-8') as f:
-    #             try:
-    #                 existing_data = json.load(f)
-    #             except json.JSONDecodeError:
-    #                 existing_data = {}
-    #     else:
-    #         existing_data = {}
-
-    #     # Преобразуем existing_data в defaultdict(list) для удобства добавления
-    #     combined_data = defaultdict(list)
-    #     # Заполняем из существующих данных
-    #     for dataset_name, runs in existing_data.items():
-    #         combined_data[dataset_name].extend(runs)
-
-    #     # Добавляем текущие результаты self.raw_results
-    #     for run in self.raw_results:
-    #         combined_data[run['dataset']].append(run)
-
-    #     # Сохраняем обратно, приводя defaultdict к dict
-    #     with open(json_path, 'w', encoding='utf-8') as f:
-    #         json.dump(self._make_json_safe(dict(combined_data)), f, ensure_ascii=False, indent=4)
-
-    def _save_as_csv(self, model_keys = ['model', 'emb']):
+    def _save_as_csv(self, model_keys = ['model', 'emb', 'optimizer', 'arch_type']):
         """
         Создает единый DataFrame из всех результатов и на его основе
         генерирует три сводные CSV-таблицы с помощью pivot_table.
