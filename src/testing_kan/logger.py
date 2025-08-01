@@ -23,9 +23,9 @@ class Logger:
             'churn': ('churn ↑', True),
             'house': ('house ↓', False),
             'fb-comments': ('fb-comments ↓', False),
-            'otto': ('otto ↑', True), # <-- Изменено на ↑
+            'otto': ('otto ↑', True),
             'ecom-offers': ('ecom-offers ↑', True),
-            'microsoft': ('microsoft ↓', False), # <-- Изменено на ↓
+            'microsoft': ('microsoft ↓', False),
             'santander': ('santander ↑', True),
             'black-friday': ('black-friday ↓', False),
             'covtype': ('covtype ↑', True),
