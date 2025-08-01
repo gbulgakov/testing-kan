@@ -261,7 +261,7 @@ class _NKANLinear(nn.Module):
         self.grid_size = grid_size
         self.spline_order = spline_order
 
-        # Инициализация сетки для каждого признака
+        # Grid initialization (for every feature)
         h = (grid_range[1] - grid_range[0]) / grid_size
         grid = (
             torch.arange(-spline_order, grid_size + spline_order + 1, dtype=torch.float32) * h
@@ -270,21 +270,21 @@ class _NKANLinear(nn.Module):
         grid = grid.expand(n, in_features, -1).contiguous()
         self.register_buffer("grid", grid)
 
-        # Параметры базового преобразования
+        # Base transition params
         self.base_weight = nn.Parameter(torch.Tensor(n, out_features, in_features))
         
-        # Параметры сплайнов
+        # Spline trainstion params
         self.spline_weight = nn.Parameter(
             torch.Tensor(n, out_features, in_features, grid_size + spline_order)
         )
         
-        # Масштаб для сплайнов
+        # Spline scaler
         if enable_standalone_scale_spline:
             self.spline_scaler = nn.Parameter(torch.Tensor(n, out_features, in_features))
         else:
             self.register_parameter('spline_scaler', None)
 
-        # Настройки инициализации
+        # Initialization params
         self.scale_noise = scale_noise
         self.scale_base = scale_base
         self.scale_spline = scale_spline
@@ -295,25 +295,25 @@ class _NKANLinear(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        # Инициализация базовых весов
+        # Base weights init
         nn.init.kaiming_uniform_(
             self.base_weight, 
             a=math.sqrt(5) * self.scale_base
         )
         
-        # Инициализация весов сплайнов
+        # Spline weights init
         with torch.no_grad():
             noise = (
                 (torch.rand(self.n, self.grid_size + 1, self.in_features, self.out_features) - 0.5)
                 * self.scale_noise
                 / self.grid_size
             )
-            # Упрощенная инициализация (нормальная версия требует доработки под curve2coeff)
+            # Simplified init (full inititalization needes updates to curve2coeff)
             self.spline_weight.data.copy_(
                 self.scale_spline * torch.randn_like(self.spline_weight)
             )
         
-        # Инициализация масштаба сплайнов
+        # Spline scale init
         if self.enable_standalone_scale_spline:
             nn.init.kaiming_uniform_(
                 self.spline_scaler, 
@@ -321,26 +321,23 @@ class _NKANLinear(nn.Module):
             )
 
     def b_splines(self, x: torch.Tensor) -> torch.Tensor:
-        """Вычисление B-сплайнов для каждого признака."""
+        """B spline calculation"""
         assert x.dim() == 3 and x.size(1) == self.n
         B, N, D = x.shape
         
-        # Расширение размерностей для совместимости с grid
+        # dim extension for grid
         x = x.unsqueeze(-1)  # [B, N, D, 1]
         grid = self.grid.unsqueeze(0)  # [1, N, D, grid_size + 2*K +1]
         
-        # Инициализация базисов
         bases = ((x >= grid[..., :-1]) & (x < grid[..., 1:])).to(x.dtype)
         
-        # Рекурсивное вычисление сплайнов
+        # spline calculation
         for k in range(1, self.spline_order + 1):
-            # Левая часть
             left = (x - grid[..., :-(k + 1)]) / (
                 grid[..., k:-1] - grid[..., :-(k + 1)] + self.grid_eps
             )
             left = left * bases[..., :-1]
             
-            # Правая часть
             right = (grid[..., k + 1:] - x) / (
                 grid[..., k + 1:] - grid[..., 1:(-k)] + self.grid_eps
             )
@@ -352,7 +349,7 @@ class _NKANLinear(nn.Module):
 
     @property
     def scaled_spline_weight(self) -> torch.Tensor:
-        """Масштабирование весов сплайнов."""
+        """Spline weights init"""
         if self.enable_standalone_scale_spline:
             return self.spline_weight * self.spline_scaler.unsqueeze(-1)
         return self.spline_weight
@@ -361,18 +358,17 @@ class _NKANLinear(nn.Module):
         if x.ndim == 2:
             x = x.unsqueeze(-1)
         
-        # Сохраняем исходную форму
         original_shape = x.shape
         x = x.view(-1, self.n, self.in_features)  # [B, N, D]
         
-        # Базовое преобразование
+        # Base transition
         base_out = torch.einsum(
             'bnd,nod->bno',
             self.base_activation(x),
             self.base_weight
         )
         
-        # Сплайновое преобразование
+        # Spline transition
         spline_bases = self.b_splines(x)  # [B, N, D, grid+K]
         spline_flat = spline_bases.view(-1, self.n, self.in_features * (self.grid_size + self.spline_order))
         
@@ -382,7 +378,7 @@ class _NKANLinear(nn.Module):
             self.scaled_spline_weight.view(self.n, self.out_features, -1)
         )
         
-        # Суммируем и восстанавливаем форму
+        # Summ and capture original shape
         return (base_out + spline_out).view(*original_shape[:-1], self.out_features)
 
     

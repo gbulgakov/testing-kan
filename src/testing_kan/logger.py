@@ -4,19 +4,18 @@ import pandas as pd
 from collections import defaultdict
 
 class Logger:
-    """
-    Класс для логирования результатов экспериментов в форматах JSON и CSV.
-    Собирает данные по ходу выполнения и сохраняет их в конце.
-    """
+    '''
+    Class that loggs experiments in JSON and CSV formats.
+    It collects all the data and save it after all runs
+    '''
     def __init__(self, results_dir, exp_name):
         self.results_dir = results_dir
         self.exp_name = exp_name
         self.raw_results = []
         os.makedirs(self.results_dir, exist_ok=True)
 
-        # костыль для удобства        
-        # Ключ: внутреннее имя датасета.
-        # Значение: кортеж (публичное_имя_колонки, метрика_вверх_лучше?)
+        # key: dataset name
+        # valye: (final column name, metric: up is better?)
         self.dataset_column_map = {
             'adult': ('adult ↑', True),
             'gesture': ('gesture ↑', True),
@@ -42,7 +41,7 @@ class Logger:
     
 
     def log_run(self, dataset_name, model_name, emb_name, arch_type, optim_name, stats):
-        """Собирает результаты одного полного запуска (тюнинг + тест)."""
+        '''Collects info from one full run (tuning + evaluation)'''
         self.raw_results.append({
             "dataset": dataset_name,
             "model": model_name,
@@ -53,14 +52,15 @@ class Logger:
         })
 
     def save(self):
+        '''Save everything in JSON and CSV'''
         """Сохраняет все собранные результаты в файлы JSON и CSV."""
         if not self.raw_results:
-            print("Нет данных для сохранения.")
+            print("No data for saving.")
             return
 
         self._save_as_json()
         self._save_as_csv()
-        print(f"Результаты эксперимента '{self.exp_name}' успешно сохранены в {self.results_dir}")
+        print(f"Experiment results'{self.exp_name}' successfully saved in {self.results_dir}")
 
     def _make_json_safe(self, obj):
         import numpy as np
@@ -73,22 +73,22 @@ class Logger:
         return obj
     
     def _save_as_json(self):
-        """
-        Сохраняет все накопленные результаты в JSON-файл.
-        Результаты группируются по имени датасета.
-        """
+        '''
+        Save all the results (grouped by dataset name) in JSON
+        '''
+ 
         json_path = os.path.join(self.results_dir, f'{self.exp_name}_results.json')
         
-        # Группируем результаты по ключу 'dataset'
+        # group by key 'dataset'
         results_by_dataset = defaultdict(list)
         for run_data in self.raw_results:
             dataset_name = run_data.get('dataset', 'unknown_dataset')
             results_by_dataset[dataset_name].append(run_data)
 
-        # Преобразуем в обычный словарь и делаем типы данных безопасными для JSON
+        # convert to classic dict and make datatypes safe for JSON
         final_data = self._make_json_safe(dict(results_by_dataset))
 
-        # Сохраняем в файл с красивым форматированием
+        # finally saving
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(final_data, f, ensure_ascii=False, indent=4)
         
@@ -96,22 +96,22 @@ class Logger:
 
 
     def _save_as_csv(self, model_keys = ['model', 'emb', 'optimizer', 'arch_type']):
-        """
-        Создает единый DataFrame из всех результатов и на его основе
-        генерирует три сводные CSV-таблицы с помощью pivot_table.
-        """
+        '''
+        Generate a unified DataFrame of all results and then generate 
+        three summary CSV-tables via pivot_table
+        '''
         
         json_path = os.path.join(self.results_dir, f'{self.exp_name}_results.json')
 
-        # Если JSON файл есть — загрузить данные из него
+        # loading from JSON if possible
         if os.path.isfile(json_path):
             with open(json_path, 'r', encoding='utf-8') as f:
                 try:
                     loaded_data = json.load(f)
                 except json.JSONDecodeError:
-                    print(f"Warning: JSON файл {json_path} поврежден или пуст, используем текущие raw_results")
+                    print(f"Warning: JSON file {json_path} hurt of empty, so using raw_results")
                     loaded_data = None
-            # Преобразуем загруженный словарь в список словарей (flat list), как raw_results
+            # converting loaded dict into в list of dicts(flat list), like raw_results
             if loaded_data is not None:
                 all_runs = []
                 for runs in loaded_data.values():
@@ -123,17 +123,16 @@ class Logger:
             df = pd.DataFrame(self.raw_results)
 
         if df.empty:
-            print("Нет данных для создания CSV.")
+            print("No data for CSV")
             return
 
-        # 2. Подготавливаем данные для сводных таблиц.
+        # 2. Preparing data for summary tables
         
-        # Создаем комбинированную колонку 'Model' для использования в качестве индекса.
-        # Это место можно легко настроить, если вы захотите добавить, например, optim_name в индекс.
+        # Creating combined index column
         df['Model'] = df['model'] + '_' + df['arch_type']
         df['Model'] = df[model_keys[0]].str.cat(df[model_keys[1:]], sep='_')
 
-        # Создаем колонки с отформатированными строками "среднее ± стд. отклонение".
+        # Creating formatted columnb "avg +- std"
         df['performance_str'] = df.apply(
             lambda row: f"{row['metric']:.3f} + {row['metric_std']:.3f}", axis=1)
         df['train_time_str'] = df.apply(
@@ -141,41 +140,40 @@ class Logger:
         df['inference_time_str'] = df.apply(
             lambda row: f"{row['val_epoch_time']:.3f} + {row['val_epoch_time_std']:.3f}", axis=1)
 
-        # Создаем "красивые" названия колонок для датасетов.
+        # pretty dataset names
         df['dataset_pretty'] = df['dataset'].apply(
             lambda x: self.dataset_column_map.get(x, (x, True))[0])
         
-        # Определяем желаемый порядок колонок в итоговых таблицах.
+        # needed column order
         sorted_columns = [info[0] for info in self.dataset_column_map.values()]
 
-        # 3. Создаем и сохраняем каждую сводную таблицу.
+        # 3. creating summary table.
         self._create_pivot_and_save(df, 'performance_str', 'results.csv', sorted_columns)
         self._create_pivot_and_save(df, 'train_time_str', 'train_time.csv', sorted_columns)
         self._create_pivot_and_save(df, 'inference_time_str', 'inference_time.csv', sorted_columns)
 
     def _create_pivot_and_save(self, df, value_col, filename, columns_order):
         """
-        Создает сводную таблицу (pivot table) и сохраняет ее в CSV.
+        Creating (pivot table) and saving as CSV.
         
         Args:
-            df (pd.DataFrame): Исходный DataFrame со всеми данными.
-            value_col (str): Название колонки, значения из которой пойдут в ячейки таблицы.
-            filename (str): Имя выходного CSV файла.
-            columns_order (list): Желаемый порядок колонок.
+            df (pd.DataFrame): originil DataFrame with data
+            value_col (str): column name, which values go to table
+            filename (str) :output csv name
+            columns_order (list): needed column order.
         """
-        # Создаем сводную таблицу:
-        # - Строки (индекс) будут из колонки 'Model'.
-        # - Колонки будут из 'dataset_pretty'.
-        # - Ячейки будут заполнены значениями из value_col.
+        # creating pivot table
+        # - index: 'Model'.
+        # - columns: from 'dataset_pretty'.
+        # - Cells: from  value_col.
         pivot_df = df.pivot_table(
             index='Model', 
             columns='dataset_pretty', 
             values=value_col, 
-            aggfunc='first'  # Так как каждая пара (Model, dataset) уникальна, aggfunc просто берет одно значение.
+            aggfunc='first'  # (Model, dataset) pairs are unique
         )
         
-        # Приводим колонки к правильному порядку, если они существуют в таблице.
-        # Приводим колонки к правильному порядку
+        # reordering columns
         ordered_cols_exist = [col for col in columns_order if col in pivot_df.columns]
         pivot_df = pivot_df[ordered_cols_exist]
 

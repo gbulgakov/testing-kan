@@ -8,54 +8,8 @@ from .efficient_kan import KAN
 from .fastkan import FastKAN
 from .mlp import MLP
 from .chebyshev_kan import ChebyKAN
-from .kuromoto import KNet
 
-# модель с эмбеддингами
-class ModelWithEmbedding(nn.Module):
-    def __init__(
-        self,
-        n_cont_features,
-        d_embedding,
-        emb_name,
-        backbone_model,
-        bins, sigma=None # словарь всех необязательных параметров, например sigma, bins
-    ) -> None:
-        super().__init__()
-        self.d_embedding = d_embedding
-        self.emb_name = emb_name
-        
-        if emb_name == 'periodic':
-            self.cont_embeddings = rtdl_num_embeddings.PeriodicEmbeddings(
-                n_cont_features, d_embedding, frequency_init_scale=sigma, lite=True
-            )
-            
-        if emb_name == 'piecewiselinearq' or emb_name == 'piecewiselineart' or emb_name == 'PLE-Q' or emb_name == 'PLE-T':
-            self.cont_embeddings = rtdl_num_embeddings.PiecewiseLinearEmbeddings(
-                d_embedding=d_embedding, activation=False, version='B', bins=bins
-            )
-
-        self.backbone = backbone_model
-    
-    def forward(
-        self,
-        x_num : Tensor,
-        x_cat : Optional[Tensor] = None
-    ) -> Tensor:
-        x = []
-        # Step 1. Embed the continuous features.
-        # Flattening is needed for MLP-like models.
-        if self.emb_name != 'none':
-              x_num = self.cont_embeddings(x_num)
-        x.append(x_num.flatten(1))
-        
-        #categorical features do not need embeddings
-        if x_cat is not None:
-            x.append(x_cat.flatten(1))
-        
-        x = torch.column_stack(x)
-        return self.backbone(x)
-
-# подготовка модели 
+# prepare model
 def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
     dataset_info = dataset['info']
     # num_cont_cols = dataset['train']['X_num'].shape[1]
@@ -69,13 +23,12 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         num_classes = dataset_info['n_classes']
         
 
-    # создание модели
-
+    # building model
     in_features = num_cont_cols * config.get('d_embedding', 1) + num_cat_cols
     out_features = num_classes
     backbone = None
     layer_widths = None
-    layer_kwargs = {} # для перехода к ансамблям
+    layer_kwargs = {}
  
     if model_name == 'kan' or model_name == 'small_kan':
         layer_widths = [in_features] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
@@ -110,23 +63,9 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         layer_kwargs = {}
         dropout = config['dropout']
         backbone = MLP(layer_widths, dropout)
-
-    elif model_name == 'k_net':
-        layer_kwargs = dict(
-            n = config['n'],
-            ch = config['ch'],
-            T = config['T'],
-            ksize = config['ksize'],
-            gamma = config['gamma']
-        )
-        backbone = KNet(in_features=in_features, 
-                        out_features=out_features, 
-                        num_layers=config['num_layers'], 
-                        **layer_kwargs)
-        layer_widths = None
         
         
-    # ниже MLP и KAN соединены последовательно с шириной первого/последнего KAN слоя
+    # MLP and KAN connected sequentially with shared layer width
     elif model_name == 'mlp_kan':
         mlp_layer_widths = [in_features] + [config['mlp_width'] for i in range(config['mlp_layers'])] + [config['kan_width']]
         kan_layer_widths = [config['kan_width']] + [config['kan_width'] for i in range(config['kan_layers'])] + [out_features]
@@ -148,11 +87,11 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         layer_widths = kan_layer_widths + mlp_layer_widths
 
 
-    # для некоторых эмбеддингов нужны все данные
+    # some embeddings requiere all data
     if emb_name not in ['none', 'periodic']:
         X_num = dataset['train']['X_num']
         Y = dataset['train']['y']
-    # создание эмбеддингов
+    # building embeddings
     if emb_name == 'piecewiselinearq' or emb_name == 'PLE-Q':
         bins = rtdl_num_embeddings.compute_bins(X=X_num, n_bins=config['d_embedding'])
         num_embeddings = {
@@ -161,8 +100,8 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
             'activation': False,
             'version': 'B'
         }
-    elif emb_name == 'piecewiselineart' or emb_name == 'PLE-T': # это мы  больше не используем
-        tree_kwargs = {'min_samples_leaf': 64, 'min_impurity_decrease': 1e-4} #возможно стоит тюнить
+    elif emb_name == 'piecewiselineart' or emb_name == 'PLE-T': # was not used
+        tree_kwargs = {'min_samples_leaf': 64, 'min_impurity_decrease': 1e-4}
         bins = rtdl_num_embeddings.compute_bins(X=X_num, y=Y, n_bins=config['d_embedding'], regression=True, tree_kwargs=tree_kwargs)
         num_embeddings = {
             'type': 'PiecewiseLinearEmbeddings',
@@ -211,7 +150,7 @@ def model_init_preparation(config, dataset, model_name, arch_type, emb_name):
         loss_fn =  F.mse_loss
     k = None
     if arch_type != 'plain':
-        k = 16 #сюда можно добавить тюнинг через config
+        k = 16
         
     return layer_widths, layer_kwargs, backbone, bins, num_embeddings, loss_fn, k
     

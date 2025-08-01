@@ -59,7 +59,7 @@ def test_best_model(
     num_cont_cols = dataset['info']['num_cont_cols']
     num_cat_cols = dataset['info']['num_cat_cols']
 
-    # подготовка логирования
+    # preparing logging
     if task_type != 'regression':
         test_best_accuracies = []
     test_best_losses = []
@@ -71,7 +71,7 @@ def test_best_model(
     num_params = 0
 
     for seed in range(10):
-        # seed + подготовка модели
+        # seed + model preparation
         seed_everything(seed)
         _, layer_kwargs, backbone, bins, embeddings_kwargs, loss_fn, k = model_init_preparation(
             config=best_params,
@@ -112,7 +112,7 @@ def test_best_model(
 
         clean_up_model(model, optimizer)
 
-        # Логгируем все
+        # logging
         if dataset['info']['task_type'] == 'regression':
             test_best_losses.append(np.sqrt(final_logs['test_best_loss'])) # переходим к RMSE
         else:
@@ -126,7 +126,7 @@ def test_best_model(
         train_epochs.append(final_logs['num_epochs'])
         num_params = final_logs['num_params']
 
-    # ключевые метрики для удобства
+    # key metrics
     if task_type == 'regression':
         metrics = test_best_losses
         direction = 'min'
@@ -134,34 +134,34 @@ def test_best_model(
         metrics = test_best_accuracies
         direction = 'max'
 
-    # гиперпараметры
+    # hyperparams
     hyperparams = collect_hyperparams(best_params, model_name, emb_name)
 
-    # аггрегируем резы
+    # results aggregation
     stats = {
-        # параметры
+        # num params
         'num_params' : num_params,
-        # эпохи
+        # epochs
         'num_epochs' : np.mean(train_epochs),
         'num_epochs_std' : np.std(train_epochs),
         'test_best_epoch' : np.mean(best_test_epochs),
         'test_best_epoch_std' : np.std(best_test_epochs),
-        # времена обучения
+        # train times
         'train_epoch_time' : np.mean(train_epoch_times),
         'train_epoch_time_std' : np.std(train_epoch_times),    
         'full_train_time' : np.mean(train_full_times),
         'full_train_time_std' : np.std(train_full_times),      
-        # времена инференса (на val)
+        # test times (on val)
         'val_epoch_time' : np.mean(val_epoch_times),
         'val_epoch_time_std' : np.std(val_epoch_times),   
-        # лоссы 
+        # losses 
         'test_best_loss' : np.mean(test_best_losses),
         'test_best_loss_std' : np.std(test_best_losses),
-        # метрики (точность/лосс) (для удобства)
+        # metrics (acc/loss)
         'metric' : np.mean(metrics),
         'metric_std' : np.std(metrics),
         'direction' : direction,
-        # размеры датасета
+        # dataset info
         'num_samples' : dataset['info']['num_samples'],
         'in_features' : dataset['info']['in_features']
     }

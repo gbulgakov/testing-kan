@@ -143,11 +143,11 @@ class LinearEfficientEnsemble(nn.Module):
         k: int,
         ensemble_scaling_in: bool,
         ensemble_scaling_out: bool,
-        ensemble_bias: bool = True, # WARNING: True - костыль, чтобы упросить вызов make_efficient_ensemble  далее
+        ensemble_bias: bool = True,
         scaling_init: Literal['ones', 'random-signs'],
     ):
         assert k > 0
-        if ensemble_bias: # говорит о наличии различных bias
+        if ensemble_bias:
             assert bias
         super().__init__()
 
@@ -500,13 +500,12 @@ class EfficientKanEnsembleLayer(nn.Module):
                 (grid[:, k+1:] - x) / (grid[:, k+1:] - grid[:, 1:-k]) * bases[:, :, 1:]
             )
         
-        # Восстановление исходной формы (кроме последней размерности)
         bases = bases.reshape(*original_shape, -1) # (batch_size, k, in_features, grid_size + spline_order) или (batch_size, in_features, grid_size + spline_order)
         return bases.contiguous()
     
     
     def curve2coeff(self, x: torch.Tensor, y: torch.Tensor):
-        # на самом деле x (grid_size + 1, in_features)
+        # actually x (grid_size + 1, in_features)
         # y (grid_size + 1, in_features, out_features)
         """
         Compute the coefficients of the curve that interpolates the given points.
@@ -679,7 +678,7 @@ def make_module(type: str, *args, **kwargs) -> nn.Module:
 # ======================================================================================
 # Optimization
 # ======================================================================================
-def default_zero_weight_decay_condition( # выбирает слои, которые не будут иметь weight_decay
+def default_zero_weight_decay_condition(
     module_name: str, module: nn.Module, parameter_name: str, parameter: nn.Parameter
 ):
     from rtdl_num_embeddings import _Periodic
@@ -770,7 +769,7 @@ class Model(nn.Module):
         ],
         k: None | int = None,
         share_training_batches: bool = True,
-        **kwargs # доп параметры для chebykan, fastkan, efficientkan
+        **kwargs # additional for KANs
     ) -> None:
         # >>> Validate arguments.
         assert n_num_features >= 0
@@ -818,8 +817,8 @@ class Model(nn.Module):
                 d_embedding for _ in range(n_num_features)
             )
         d_cat = (n_cat_features if n_cat_features != None else 0)
-        first_adapter_sections.extend(1 for _ in range(d_cat)) # нужно для корректной работы _init_first_adapter, TODO: посмотреть на что это влияет, убрать, если не нужно
-        '''Уже обработаны категориальные признаки, так что делаем вид, что их нет'''
+        first_adapter_sections.extend(1 for _ in range(d_cat)) 
+        '''cat cardinalities already preprocessed'''
         # # >>> Categorical features
         # self.cat_module = (
         #     OneHotEncoding0d(cat_cardinalities) if cat_cardinalities else None
@@ -830,7 +829,6 @@ class Model(nn.Module):
 
         # >>> Backbone
         self.minimal_ensemble_adapter = None
-        '''Передаем модель из вне! (Как раньше)'''
         self.backbone = backbone
 
         if arch_type != 'plain':
@@ -851,7 +849,6 @@ class Model(nn.Module):
                 # Like BatchEnsemble, but all multiplicative adapters,
                 # except for the very first one, are initialized with ones.
                 assert first_adapter_init is not None
-                # подбираем тип эффективного слоя в зависимости от типа модели
                 efficient_layer = (
                     LinearEfficientEnsemble
                     if isinstance(self.backbone, MLP)
@@ -867,7 +864,7 @@ class Model(nn.Module):
                     k=k,
                     ensemble_scaling_in=True,
                     ensemble_scaling_out=True,
-                    # ensemble_bias=True, пофиксили передачей дефолтного значение в линейную модель
+                    # ensemble_bias=True, fixed via default values
                     scaling_init='ones',
                     **kwargs
                 )

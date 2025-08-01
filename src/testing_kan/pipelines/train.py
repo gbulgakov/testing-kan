@@ -6,7 +6,6 @@ from tqdm import tqdm
 
 from src.testing_kan.utils import count_parameters, compare_epochs
 
-# Словарь размеров батчей для разных датасетов
 BATCH_SIZES = {
     'gesture': 128,
     'churn': 128,
@@ -107,7 +106,7 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
         loss_value = loss_fn(output, batch_data['y'])
         loss_value.backward()
         optimizer.step()
-        # сохранение истории
+        # logg
         train_loss += loss_value.item()
         
         #not needed for regression
@@ -189,7 +188,7 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
     num_batches = len(loader)
     val_accuracy = correct / total
 
-    return val_loss / num_batches, val_accuracy, val_time # с нормировкой
+    return val_loss / num_batches, val_accuracy, val_time
 
 def train(
     epochs, model, model_name, arch_type,
@@ -202,7 +201,7 @@ def train(
     task_type = dataset['info']['task_type']
 
     train_times = []
-    val_times = [] # времена инференса можно замерять и на val!
+    val_times = [] # inference times are measured on val
 
     val_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
     test_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
@@ -213,7 +212,7 @@ def train(
         total_epochs +=1 
 
         train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
-        # тестируем и валидируем
+        # evaluation
         val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
         test_loss, test_acc, test_time = validate(model, device, dataset, base_loss_fn, 'test', model_name, arch_type)
 
@@ -221,7 +220,7 @@ def train(
         val_times.append(val_time)
 
 
-        # обновляем лучшие эпохи для val/test
+        # best epoch update
         val_epoch = {'epoch' : epoch + 1, 'loss' : val_loss, 'acc' : val_acc}
         test_epoch = {'epoch' : epoch + 1, 'loss' : test_loss, 'acc' : test_acc}
         if compare_epochs(task_type, val_epoch, val_best_epoch):
@@ -248,7 +247,6 @@ def train(
         'val_best_loss' : val_best_epoch['loss'],
         'test_best_epoch' : test_best_epoch['epoch'],
         'test_best_loss' : test_best_epoch['loss']
-        # ширины и так будут залоггированы
     }
     if task_type != 'regression':
         final_logs.update({

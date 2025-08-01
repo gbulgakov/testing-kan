@@ -35,7 +35,7 @@ BATCH_SIZES = {
     'regression-cat-large-0-particulate-matter-ukair-2017' : 1024
 }
 
-# датасет с батчами нужного вида
+# dataset with proper batches
 class CustomTensorDataset(Dataset):
     def __init__(self, X_num, X_cat, y):
         self.X_num = X_num
@@ -48,7 +48,7 @@ class CustomTensorDataset(Dataset):
     def __getitem__(self, idx):
         return self.X_num[idx], self.X_cat[idx], self.y[idx]
 
-#правило, по которому создаются батчи по индексу, при создании DataLoader
+# custom batch sampling
 class CustomBatchSampler(BatchSampler):
     def __init__(self, data_size, batch_size, k, share_batches, device):
         self.data_size = data_size
@@ -56,21 +56,20 @@ class CustomBatchSampler(BatchSampler):
         self.k = k
         self.share_batches = share_batches
         self.device = device
-        # Предварительно генерируем все батчи один раз при инициализации
     
     def __iter__(self):
-        # Просто возвращаем итератор по предварительно созданным батчам
+        # iter on generated batches
         if self.share_batches:
-            # Общий случай: одна перестановка
-            self.batches = torch.randperm(self.data_size, device='cpu').split(self.batch_size) # CPU здесь необходимо, т.к. невозможно создание тензоров на CUDA в дочерних процессах (для num_workers > 0)
+            # one permotutation - common case
+            self.batches = torch.randperm(self.data_size, device='cpu').split(self.batch_size) 
         else:
             self.batches = [
                 x.transpose(0, 1).flatten()
-                for x in torch.rand((self.k, self.data_size), device='cpu') # аналогично 
+                for x in torch.rand((self.k, self.data_size), device='cpu')
                 .argsort(dim=1)
                 .split(self.batch_size, dim=1)
             ]
-        # Вычисляем общее количество батчей
+        # num batches
         self.num_batches = len(self.batches)
         return iter(self.batches)
     
@@ -80,16 +79,15 @@ class CustomBatchSampler(BatchSampler):
 def get_dataloader(model, part: str, batch_size: int, dataset: Dataset, device: str, num_workers: int) -> DataLoader:
     arch_type = model.arch_type
     data_size = len(dataset)
-    k = getattr(model, 'k', 1)  # Безопасное получение k (по умолчанию 1)
+    k = getattr(model, 'k', 1)
     
-    # Определяем стратегию батчирования
+    # batching strategy
     if arch_type != 'plain' and part == 'train':
         share_batches = getattr(model, 'share_training_batches', True)
     else:
-        # Для всех других случаев (eval/test) используем общие батчи
+        # other cases (eval/test) -> share batches
         share_batches = True
     
-    # Создаем кастомный batch sampler
     batch_sampler = CustomBatchSampler(
         data_size=data_size,
         batch_size=batch_size,
@@ -98,7 +96,7 @@ def get_dataloader(model, part: str, batch_size: int, dataset: Dataset, device: 
         device=device,
     )
     
-    # Создаем DataLoader с нашим batch_sampler
+    # dataloader with our batch sampler
     return DataLoader(
         dataset=dataset,
         batch_sampler=batch_sampler,
@@ -107,12 +105,10 @@ def get_dataloader(model, part: str, batch_size: int, dataset: Dataset, device: 
         # collate_fn=collate_fn
     )
 
-# это для получения даталоадеров потом 
 def get_dataloaders(dataset, model, device, num_workers=4):
     dataset_name = dataset['info']['id'].split('--')[0]
     dataloaders = {}
     for part in ['train', 'test', 'val']:
-        # проверяем наличие X_cat
         X_cat = dataset[part].get('X_cat', None)
         dataset_part = CustomTensorDataset(
             X_num=dataset[part]['X_num'],
@@ -129,25 +125,21 @@ def get_dataloaders(dataset, model, device, num_workers=4):
             num_workers=num_workers)
     return dataloaders
 
-# добавил простейший препроцессинг
+# simple preprocessing
 def load_dataset(name, zip_path=None):
     if zip_path is None:
         zip_path = f'/kaggle/working/{name}.zip'
     data = {'train': {}, 'val': {}, 'test': {}}
     
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        # Создаем временную директорию для распаковки
         temp_dir = Path(f'{name}_data')
         temp_dir.mkdir(exist_ok=True)
         zip_ref.extractall(temp_dir)
 
-        # Определяем корневую папку с данными
         content = list(temp_dir.glob('*'))
         if len(content) == 1 and content[0].is_dir():
-            # Если в архиве была одна папка - используем её
             data_dir = content[0]
         else:
-            # Если файлы были в корне - создаем папку с именем датасета
             data_dir = temp_dir / name
             data_dir.mkdir(exist_ok=True)
             for item in content:
@@ -155,26 +147,24 @@ def load_dataset(name, zip_path=None):
                     item.rename(data_dir / item.name)
     
 
-        # Загружаем метаданные
         with open(data_dir / 'info.json') as f:
             data['info'] = json.load(f)
         
 
-        # Для категориальных фич
+        # cat features
         one_hot_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
         
-        # Для числовых фич и меток (регрессия)
+        # num features and labels (regression)
         scaler = StandardScaler()
         scaler_y = StandardScaler()
         
-        # Загружаем все .npy файлы
         for part in ['train', 'val', 'test']:
             for data_type in ['X_num', 'X_cat', 'y']:
                 file_path = data_dir / f'{data_type}_{part}.npy'
                 if file_path.exists():
                     data[part][data_type] = np.load(file_path, allow_pickle=True)
 
-        # Обучение OHE на train и кодирование категориальных признаков
+        # cat features
         for part in ['train', 'val', 'test']:
             cat_path = data_dir / f'X_cat_{part}.npy'
             if cat_path.exists():
@@ -182,7 +172,7 @@ def load_dataset(name, zip_path=None):
                     one_hot_encoder.fit(data['train']['X_cat']) 
                 data[part]['X_cat'] = one_hot_encoder.transform(data[part]['X_cat'])
 
-        # Обучение StandardScaler на train и стандартизация числовых признаков
+        # StandardScaler on train 
         for part in ['train', 'val', 'test']:
             num_path = data_dir / f'X_num_{part}.npy'
             if num_path.exists():
@@ -190,32 +180,32 @@ def load_dataset(name, zip_path=None):
                     scaler.fit(data['train']['X_num'])  # Обучаем scaler только на train
                 data[part]['X_num'] = scaler.transform(data[part]['X_num'])
 
-        # Для регрессии надо стандартизировать y
+        # y standatization for regressions
         if data['info']['task_type'] == 'regression':
             for part in ['train', 'val', 'test']:
                 y_path = data_dir / f'y_{part}.npy'
                 if y_path.exists():
                     if part == 'train':
-                        # Преобразуем в 2D для StandardScaler, сохраняя размерность
+                        # reshape to 2D
                         y_reshaped = data['train']['y'].reshape(-1, 1)
                         scaler_y.fit(y_reshaped)
                     
-                    # Преобразуем, сохраняя оригинальную размерность
+                    # reshape 
                     y_reshaped = data[part]['y'].reshape(-1, 1)
                     data[part]['y'] = scaler_y.transform(y_reshaped).reshape(data[part]['y'].shape)
             data['scaler_y'] = scaler_y
 
-        # Переводим данные в тензоры
+        # back to torch.tensor
         for part in ['train', 'val', 'test']:
             for data_type in data[part].keys():
                 data[part][data_type] = torch.tensor(data[part][data_type], dtype=torch.float)
 
-        # для multiclass нужно привести все к long        
+        # convert to long type for multiclass    
         if data['info']['task_type'] == 'multiclass':
             for part in ['train', 'val', 'test']:
                 data[part]['y'] = data[part]['y'].long()
             
-        # добавим полезную инфу
+        # for convinience
         data['info']['in_features'] = data['train']['X_num'].shape[1]
         data['info']['num_samples'] = 0
         for part in ['train', 'test', 'val']:
@@ -226,7 +216,6 @@ def load_dataset(name, zip_path=None):
             data['info']['in_features'] += data['train']['X_cat'].shape[1]
             data['info']['num_cat_cols'] = data['train']['X_cat'].shape[1]
         
-        # Удаляем временную директорию
         shutil.rmtree(temp_dir)
     
     return data

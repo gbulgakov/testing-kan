@@ -8,42 +8,13 @@ sys.path.append(os.path.join(HOME, 'KAN', 'testing-kan'))
 from IPython.display import clear_output
 
 from src.testing_kan import data_processing
-from src.testing_kan.tg_bot import send_telegram_file, send_telegram_message
 from src.testing_kan.pipelines.tuning import tune
 from src.testing_kan.pipelines.testing import test_best_model
 from src.testing_kan.logger import Logger
 from src.testing_kan.utils import create_zip_archive
 
-from functools import wraps
-import traceback
-from datetime import datetime
 
-def telegram_error_notification(func):
-    """Декоратор для отправки ошибок в Telegram"""
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            
-            # Формируем подробное сообщение
-            error_msg = (
-                f"*❌ Ошибка*\n\n"
-                f"*Model:* `{kwargs.get('model_name', 'N/A')}`\n"
-                f"*Dataset:* `{kwargs.get('dataset_name', 'N/A')}`\n"
-                f"*Arch type:* `{kwargs.get('arch_type', 'N/A')}`\n"
-                f"*Embedding:* `{kwargs.get('emb_name', 'N/A')}`\n"
-                f"*Optimizer:* `{kwargs.get('optim_name', 'N/A')}`\n"
-                f"*Функция:* `{func.__name__}`\n\n"
-                f"*Ошибка:*\n```\n{str(e)}\n```\n\n"
-                f"*Traceback:* (нажмите ▶️)\n"
-                f"```\n{traceback.format_exc()}\n```"
-            )
-            send_telegram_message(error_msg)
-            raise  # Пробрасываем исключение дальше
-    return wrapper
 
-@telegram_error_notification 
 def run_single_model(
         *,
         model_name, 
@@ -98,7 +69,6 @@ def run_single_dataset(
         for arch_type in arch_types:
             for optim_name in optim_names:
                 for emb_name in emb_names:
-                    # Аргументы в run_single_model можно немного почистить
                     stats = run_single_model(
                         model_name=model_name,
                         arch_type=arch_type,
@@ -111,7 +81,6 @@ def run_single_dataset(
                     )
                     clear_output(wait=True)
                     
-                    # 3. Вызываем метод логгера с отдельными параметрами
                     logger.log_run(
                         dataset_name=dataset_name,
                         model_name=model_name,
@@ -134,16 +103,11 @@ def run_experiment(
     patience,
     exp_name
 ):
-    send_telegram_message(
-        f"🚀 *Запуск эксперимента*\n"
-        f"▫️ *Название:* `{exp_name}`\n"
-        f"▫️ *Время:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
-    )
     # Logger
     results_dir = os.path.join(HOME, 'KAN', 'testing-kan', 'results', exp_name)
     logger = Logger(results_dir, exp_name)
 
-    # Запуски
+    # runs
     for dataset_name in dataset_names:
         run_single_dataset(
             dataset_name=dataset_name,
@@ -154,20 +118,14 @@ def run_experiment(
             num_epochs=num_epochs,
             num_trials=num_trials,
             patience=patience,
-            logger=logger  # <--- Передаем логгер
+            logger=logger
         )
 
-    # В конце вызываем один метод, который сохранит все файлы (JSON и CSV)
     logger.save()
 
-    # Создаем общий ZIP-архив
     archive_name = f'{exp_name}_logs.zip'
     archive_path = os.path.join(results_dir, archive_name)
     create_zip_archive(source_dir=results_dir, archive_path=archive_path)
 
-    # Отправляем в Telegram именно ZIP-архив
-    send_telegram_file(archive_path)
     
-    # Можно обновить финальное сообщение
-    send_telegram_message(f'✅ Эксперимент {exp_name} завершен. Архив с логами отправлен.')
 

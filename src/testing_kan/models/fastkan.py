@@ -60,8 +60,8 @@ class FastKANLayer(nn.Module):
         spline_weight_init_scale: float = 0.1,
     ) -> None:
         super().__init__()
-        self.input_dim = input_dim # нужно для make_efficient_ensemble
-        self.output_dim = output_dim # нужно для make_efficient_ensemble
+        self.input_dim = input_dim # needed for make_efficient_ensemble
+        self.output_dim = output_dim # needed for make_efficient_ensemble
         self.layernorm = None
         if use_layernorm:
             assert input_dim > 1, "Do not use layernorms on 1D inputs. Set `use_layernorm=False`."
@@ -156,22 +156,22 @@ class _NFastKANLayer(nn.Module):
         self.use_base_update = use_base_update
         self.base_activation = base_activation
 
-        # Инициализация RBF для всех признаков
+        # RBF initialization
         self.rbf = RadialBasisFunction(grid_min, grid_max, num_grids)
         
-        # LayerNorm (по последнему измерению для каждого признака)
+        # LayerNorm
         self.layernorm = None
         if use_layernorm:
             assert input_dim > 1, "LayerNorm requires input_dim > 1"
             self.layernorm = nn.LayerNorm(input_dim)
 
-        # Параметры сплайнового преобразования
+        # Spline transition params
         self.spline_weight = nn.Parameter(
             torch.empty(n, output_dim, input_dim * num_grids)
         )
         nn.init.normal_(self.spline_weight, std=spline_weight_init_scale)
 
-        # Параметры базового преобразования
+        # Base transition params
         if self.use_base_update:
             self.base_weight = nn.Parameter(torch.empty(n, output_dim, input_dim))
             self.base_bias = nn.Parameter(torch.empty(n, output_dim))
@@ -190,16 +190,16 @@ class _NFastKANLayer(nn.Module):
         original_shape = x.shape
         x = x.view(-1, self.n, self.input_dim)
 
-        # Применение LayerNorm
+        #  LayerNorm
         if self.layernorm is not None and use_layernorm:
             x = self.layernorm(x)
 
-        # Сплайновое преобразование
+        # Spline transition
         rbf_out = self.rbf(x)  # [batch_size, n, input_dim, num_grids]
         rbf_flat = rbf_out.view(*rbf_out.shape[:-2], -1)  # [batch_size, n, input_dim*num_grids]
         spline_out = torch.einsum("bni,noi->bno", rbf_flat, self.spline_weight)
 
-        # Базовое преобразование
+        # Base transition
         if self.use_base_update:
             base = torch.einsum(
                 "bni,noi->bno",
@@ -208,7 +208,6 @@ class _NFastKANLayer(nn.Module):
             )
             spline_out = spline_out + base + self.base_bias.unsqueeze(0)
 
-        # Возвращаем результат с восстановленной формой
         return spline_out.view(*original_shape[:-1], self.output_dim)
 
 
