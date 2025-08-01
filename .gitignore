@@ -1,30 +1,30 @@
-# 1. Результаты и данные, специфичные для вашего проекта
+# 1. 
 # =======================================================
-# Игнорируем папки с данными и результатами
+# ignore data and results
 /data/
 /results/
 
-# 2. Системные файлы операционных систем
+# 2. System files
 # ======================================
 .DS_Store
 Thumbs.db
 
-# 3. Файлы IDE и редакторов кода
+# 3. IDE files
 # ===================================
 .idea/
 .vscode/
 *.sublime-project
 *.sublime-workspace
 
-# 4. Файлы и папки Python
+# 4. Python files
 # =========================
-# Папки с кэшем
+# Cache folders
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Папки виртуальных окружений
+# Virtual environments folders
 .env
 .venv
 env/
