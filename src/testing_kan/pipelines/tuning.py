@@ -5,7 +5,7 @@ import torch
 import optuna
 from optuna.samplers import RandomSampler
 
-from src.testing_kan.utils import get_optimizer, clean_up_model
+from src.testing_kan.utils import get_optimizer, clean_up_model, seed_everything
 from .train import train
 from src.testing_kan.data_processing import get_dataloaders
 from src.testing_kan.models.prepare_model import model_init_preparation
@@ -69,6 +69,7 @@ def make_objective(
         patience=5,
 ):
     def objective(trial):
+        seed_everything(52)
         # dataset info
         dataset_info = dataset['info']
         num_cont_cols = dataset_info['num_cont_cols']
