@@ -19,8 +19,8 @@ To run experiments from the paper:
 
 1. **Clone the Repository**:
 ```
-git clone https://anonymous.4open.science/r/tabular-kan
-cd testing-kan
+git clone https://anonymous.4open.science/r/tabular-kan/
+cd tabular-kan
 ```
 
 2. **Install Dependencies** (assuming Python 3.8+):
