@@ -37,6 +37,6 @@ After following this two steps, you can run python `scripts/run.py` specifying t
 4. --arch_types = list of ensembling strategies (plain, tabm-mini, tabm)
 5. --config = path to the .yaml config file, that contains additional info of the experiment.
 
-Alternetivly, you can specify the arguments above in the config file, and only use --config while running ` python scripts/run.py`
+Alternetively, you can specify the arguments above in the config file, and only use --config while running ` python scripts/run.py`
 
 
