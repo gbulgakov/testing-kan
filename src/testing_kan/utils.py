@@ -1,69 +1,110 @@
-import zipfile
-import os
+from __future__ import annotations
+
 import gc
-import yaml
+import os
+import random
+import zipfile
+from typing import Dict, Any, Iterable
+
+import numpy as np
 import torch
+
+# Optional: custom optimizers
 from .optimizers.ademamix import AdEMAMix
 from .optimizers.muon import Muon
 from .optimizers.mars import MARS
-from .optimizers.sign import Signum
 
-OPTIMIZERS = { 
-              'adamw' : torch.optim.AdamW,
-              'ademamix' : AdEMAMix,
-              'mars' : MARS,
-              'muon' : Muon,
-              'sign' : Signum,
-              'momentum_sign' : Signum
-             }
+# --------------------------------------------------------------------------- #
+# Optimizer registry
+# --------------------------------------------------------------------------- #
 
-def create_zip_archive(source_dir, archive_path):
+OPTIMIZERS: Dict[str, Any] = {
+    "adamw": torch.optim.AdamW,
+    "ademamix": AdEMAMix,
+    "mars": MARS,
+    "muon": Muon,
+}
+
+# --------------------------------------------------------------------------- #
+# I/O helpers
+# --------------------------------------------------------------------------- #
+
+
+def create_zip_archive(source_dir: str | os.PathLike, archive_path: str | os.PathLike) -> None:
     """
-    Collects  data from source_dir to one Zip-archive.
+    Collect all files inside `source_dir` into a single ZIP archive.
     """
-    #  'w' for new archive and ZIP_DEFLATED for compression
-    with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for filename in os.listdir(source_dir):
-            # full path to added file
-            file_path = os.path.join(source_dir, filename)
-            # check whether it is file
-            if os.path.isfile(file_path) and not filename.endswith('.zip'):
-                # adding to archive. arcname=filename ensures,
-                # that there would be not extra pathes in archive (only file name)
-                zipf.write(file_path, arcname=filename)
+    with zipfile.ZipFile(archive_path, mode="w", compression=zipfile.ZIP_DEFLATED) as zipf:
+        for fname in os.listdir(source_dir):
+            fpath = os.path.join(source_dir, fname)
+            if os.path.isfile(fpath) and not fname.endswith(".zip"):
+                # `arcname=fname` keeps the root of the archive clean
+                zipf.write(fpath, arcname=fname)
 
 
+# --------------------------------------------------------------------------- #
+# Training utilities
+# --------------------------------------------------------------------------- #
 
-def seed_everything(seed=0):
-    import random
+
+def compare_epochs(task_type: str, epoch_a: Dict[str, Any], epoch_b: Dict[str, Any]) -> bool:
+    """
+    Return *True* if `epoch_a` outperforms `epoch_b`.
+    """
+    if task_type == "regression":
+        return epoch_a["loss"] < epoch_b["loss"]
+    return epoch_a["acc"] > epoch_b["acc"]
+
+
+def seed_everything(seed: int = 0) -> None:
+    """
+    Set seed for Python / NumPy / PyTorch to get reproducible results.
+    """
     random.seed(seed)
-    import os
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    import numpy as np
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
     np.random.seed(seed)
-    import torch
+
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    torch.cuda.manual_seed_all(seed)  # multi-GPU
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
-def count_parameters(model):
+
+def count_parameters(model: torch.nn.Module) -> int:
+    """
+    Count trainable parameters in a model.
+    """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
-def get_optimizer(optim_name, model_params, config):
+
+
+def get_optimizer(optim_name: str, model_params: Iterable[torch.nn.Parameter], config: Dict[str, Any]):
+    """
+    Instantiate an optimizer from `OPTIMIZERS`.
+
+    Expected keys in `config`
+    -------------------------
+    lr : float
+    weight_decay : float   (ignored for Muon)
+    """
     optim_class = OPTIMIZERS[optim_name]
-    optim_kwargs = {'lr' : config['lr']}
+    optim_kwargs: Dict[str, Any] = {"lr": config["lr"]}
 
-    if optim_name != 'muon':             # for muon all params are  -- muon_params
-        optim_kwargs['weight_decay'] = config['weight_decay']
-    if optim_name == 'momentum_sign':    # basic signum - without momentum
-        optim_kwargs['momentum'] = 0.9
+    # Weight decay is not part of Muon’s API
+    if optim_name != "muon":
+        optim_kwargs["weight_decay"] = config["weight_decay"]
 
-    if optim_name == 'muon':
+    # Muon expects a list, not a generator
+    if optim_name == "muon":
         model_params = list(model_params)
+
     return optim_class(model_params, **optim_kwargs)
+    
  
-def clean_up_model(model, optimizer):
+def clean_up_model(model: torch.nn.Module, optimizer) -> None:
+    """
+    Free GPU memory after a training run.
+    """
     del model, optimizer
     torch.cuda.empty_cache()
     gc.collect()
-

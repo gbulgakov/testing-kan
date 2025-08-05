@@ -1,39 +1,24 @@
 import time
-
+from typing import Dict, Any, Callable, Tuple, List
 import torch
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.optimizer import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler, CosineAnnealingLR
+import torch.nn as nn
+from torch import Tensor
 from tqdm import tqdm
 
 from src.testing_kan.utils import count_parameters, compare_epochs
 
-BATCH_SIZES = {
-    'gesture': 128,
-    'churn': 128,
-    'california': 256,
-    'house': 256,
-    'adult': 256,
-    'otto': 512,
-    'higgs-small': 512,
-    'fb-comments': 512,
-    'santander': 1024,
-    'covtype': 1024,
-    'microsoft': 1024,
-    'eye': 128,
-    'sberbank-housing' : 256,
-    'homesite-insurance' : 1024,
-    'homecredit-default' : 1024,
-    'ecom-offers' : 1024, 
-    'regression-num-large-0-year' : 1024,
-    'black-friday' : 1024,
-    'diamond' : 256,
-    'classif-num-large-0-MiniBooNE' : 512,
-    'regression-num-medium-0-medical_charges' : 1024,
-    'classif-cat-large-0-road-safety' : 1024,
-    'regression-cat-large-0-nyc-taxi-green-dec-2016' : 1024,
-    'regression-cat-large-0-particulate-matter-ukair-2017' : 1024
-}
 
-def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_training_batches: bool):
+def get_loss_fn(
+    arch_type: str,
+    base_loss_fn: Callable[[Tensor, Tensor], Tensor],
+    task_type: str,
+    share_training_batches: bool
+) -> Callable[[Tensor, Tensor], Tensor]:
+    """
+    Create a loss function wrapper based on architecture type and task configuration.
+    """
     if arch_type != 'plain':
         loss_fn = lambda y_pred, y_true: base_loss_fn(
             y_pred.flatten(0, 1),
@@ -44,12 +29,8 @@ def get_loss_fn(arch_type: str, base_loss_fn: str, task_type: str, share_trainin
     return loss_fn
 
 
-# def apply_model(batch: dict[str, torch.Tensor], model) -> torch.Tensor:
-#     return model(batch['X_num'], batch.get('X_cat')).squeeze(-1)
 # Automatic mixed precision (AMP)
-# torch.float16 is implemented for completeness,
-# but it was not tested in the project,
-# so torch.bfloat16 is used by default.
+# torch.bfloat16 is preferred over torch.float16 for better numerical stability
 amp_dtype = (
     torch.bfloat16
     if torch.cuda.is_available() and torch.cuda.is_bf16_supported()
@@ -57,12 +38,15 @@ amp_dtype = (
     if torch.cuda.is_available()
     else None
 )
-# Changing False to True will result in faster training on compatible hardware.
+
+# AMP is disabled by default - set to True for faster training on compatible hardware
 amp_enabled = False and amp_dtype is not None
 device = torch.device('cuda')
-@torch.autocast(device.type, enabled=amp_enabled, dtype=amp_dtype)  # type: ignore[code]
-def apply_model(batch_data: dict, model) -> torch.Tensor:
-    '''Сюда поступает батч на нужном девайсе и на нужной части датасета'''
+
+
+@torch.autocast(device.type, enabled=amp_enabled, dtype=amp_dtype)
+def apply_model(batch_data: Dict[str, Tensor], model: nn.Module) -> Tensor:
+    """Apply the model to the batch data."""
     return (
         model(
             batch_data['X_num'],
@@ -72,13 +56,22 @@ def apply_model(batch_data: dict, model) -> torch.Tensor:
         .float()
     )
 
-def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type):
-    # for key, tensor in dataset['train'].items():  # наши датасеты спокойно влезают в память
-    #     dataset['train'][key] = tensor.to(device) # overkill, скорее всего нужно сделать умнее
-    dataset_name = dataset['info']['id'].split('--')[0]
+
+def train_epoch(
+        model: nn.Module, 
+        device: torch.device, 
+        dataset: dict, 
+        base_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor], 
+        optimizer: Optimizer, 
+        scheduler: _LRScheduler, 
+        arch_type: str
+    ) -> Tuple[float, float, float]:
+    '''
+    Train the model for one epoch
+    '''
+
     task_type = dataset['info']['task_type']
     loader = dataset['train']
-    # train_size = dataset['train']['X_num'].shape[0]
 
     model.to(device)
     model.train()
@@ -101,30 +94,31 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
 
         optimizer.zero_grad()
         
-        # (B, k, n_out) or (B, k) (if regression)
+        # Forward pass: output shape is (B, k, n_out) or (B, k) for regression/binclass
         output = apply_model(batch_data, model)
         loss_value = loss_fn(output, batch_data['y'])
         loss_value.backward()
         optimizer.step()
-        # logg
         train_loss += loss_value.item()
         
-        #not needed for regression
+        # Calculate accuracy based on whether training batches are shared
         if model.share_training_batches:
-            output = output.mean(dim=1) # (B, n_out) or (B)
-            y_true = batch_data['y'] # (B)
+            output = output.mean(dim=1)  # Average over ensemble members: (B, n_out) or (B)
+            y_true = batch_data['y']     # Ground truth: (B)
         else:
-            output = output # (B, k, n_out) or (B, k)
-            y_true = batch_data['y'] # (B, k)
+            output = output              # Keep ensemble dimension: (B, k, n_out) or (B, k)
+            y_true = batch_data['y']     # Ground truth: (B, k)
         
         
+        # Generate predictions (simplified approach for all task types)
         if task_type == 'binclass' or task_type == 'regression':
-            pred = (output >= 0).float() # if binaryclassification then -> >= 0.5 (pred (B, k) or (B))
+            pred = (output >= 0).float()  # Binary threshold at 0.0
         else:
-            pred = output.argmax(1) # if multiclass then -> argmax over classes (pred (B, k) or (B))
-        
+            pred = output.argmax(1)       # Multiclass: argmax over classes
+
         correct += (pred == y_true).float().sum().item()
         total += y_true.numel()
+
     scheduler.step()
 
     end_time = time.time()
@@ -132,20 +126,28 @@ def train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, mode
 
     num_batches = len(loader)
     train_accuracy = correct / total
-    #accuracy is found as accuracy of mean prediction over k if model.share_training_batches==True
-    # else accuracy of all predictions
 
-    return train_loss / num_batches, train_accuracy, epoch_time # с нормировкой
+    return train_loss / num_batches, train_accuracy, epoch_time 
     
-def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_type):
+def validate(
+        model: nn.Module, 
+        device: torch.device, 
+        dataset:  Dict[str, Any], 
+        base_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        part: str, 
+        model_name: str, 
+    ) -> Tuple[float, float, float]:
+    '''
+    Validate the model on a specified dataset partition.
+    '''
+    loader = dataset[part]
     model.eval()
     model.to(device)
+    
     val_loss = 0.0
-    loader = dataset[part]
-    # val_size = dataset['val']['X_num'].shape[0]
-
     correct = 0
     total = 0
+    task_type = dataset['info']['task_type']
 
     task_type = dataset['info']['task_type']
     
@@ -158,83 +160,105 @@ def validate(model, device, dataset, base_loss_fn, part, model_name: str, arch_t
             X_num = X_num.to(device)
             X_cat = X_cat.to(device)
             y = y.to(device)
+            
             batch_data = {
-                'X_num' : X_num, 
-                'X_cat' : X_cat if X_cat.size(1) > 0 else None, 
-                'y' : y
+                'X_num': X_num,
+                'X_cat': X_cat if X_cat.size(1) > 0 else None,
+                'y': y
             }
-
-            output = apply_model(batch_data, model) # (B, k, n_out) or (B, k)
-
+            
+            # Forward pass: output shape is (B, k, n_out) or (B, k)
+            output = apply_model(batch_data, model)
             val_loss += loss_fn(output, batch_data['y']).item()
             
-            output = output.mean(dim=1) # (B, n_out) or (B)
+            # Average predictions over ensemble members for final prediction
+            output = output.mean(dim=1)  # (B, n_out) or (B)
 
-            #not needed for regression
+            # Average predictions over ensemble members for final prediction
+            output = output.mean(dim=1)  # (B, n_out) or (B)
+            
+            # Generate predictions (simplified approach for all task types)
             if task_type == 'binclass' or task_type == 'regression':
                 pred = (output >= 0).float()
-                #output >= 0.5 -> (B)
             else:
-                pred = output.argmax(1)  #multiclass
-                #output.argmax(1) -> (B)
-                        
+                pred = output.argmax(1)  # Multiclass
+                
             correct += (pred == batch_data['y']).float().sum().item()
             total += batch_data['y'].numel()
 
         end_time = time.time()
         val_time = end_time - start_time
         
-    # num_batches = dataset[part]['y'].shape[0] // batch_size + 1
     num_batches = len(loader)
     val_accuracy = correct / total
 
     return val_loss / num_batches, val_accuracy, val_time
 
 def train(
-    epochs, model, model_name, arch_type,
-    device, dataset, base_loss_fn,  
-    optimizer, patience=5
-):
+    epochs: int,
+    model: nn.Module, 
+    model_name: str, 
+    arch_type: str,
+    device: torch.device, 
+    dataset: Dict[str, Any], 
+    base_loss_fn: Callable[[Tensor, Tensor], Tensor],  
+    optimizer: Optimizer, 
+    patience: int=5
+) -> Dict[str, Any]:
+    '''
+    Train the model for multiple epochs with early stopping based on validation performance.
+    '''
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
     model.to(device)
+
     dataset_name = dataset['info']['id'].split('--')[0]
     task_type = dataset['info']['task_type']
 
     train_times = []
     val_times = [] # inference times are measured on val
-
     val_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
     test_best_epoch = {'epoch' : 0, 'acc' : 0, 'loss' : 10**20}
-
     remaining_patience = patience
     total_epochs = 0
+
     for epoch in tqdm(range(epochs), desc = f'{model_name}_{arch_type} on {dataset_name}'):
         total_epochs +=1 
 
-        train_loss, train_acc, train_time = train_epoch(model, device, dataset, base_loss_fn, optimizer, scheduler, model_name, arch_type)
-        # evaluation
-        val_loss, val_acc, val_time = validate(model, device, dataset, base_loss_fn, 'val', model_name, arch_type)
-        test_loss, test_acc, test_time = validate(model, device, dataset, base_loss_fn, 'test', model_name, arch_type)
+        # Training step
+        train_loss, train_acc, train_time = train_epoch(
+            model, device, dataset, base_loss_fn, optimizer, scheduler, arch_type
+        )
+
+        # Validation and test evaluation
+        val_loss, val_acc, val_time = validate(
+            model, device, dataset, base_loss_fn, 'val', model_name
+        )
+        test_loss, test_acc, test_time = validate(
+            model, device, dataset, base_loss_fn, 'test', model_name
+        )
 
         train_times.append(train_time)
         val_times.append(val_time)
 
-
-        # best epoch update
-        val_epoch = {'epoch' : epoch + 1, 'loss' : val_loss, 'acc' : val_acc}
-        test_epoch = {'epoch' : epoch + 1, 'loss' : test_loss, 'acc' : test_acc}
+        # Track best epochs for validation and test sets
+        val_epoch = {'epoch': epoch + 1, 'loss': val_loss, 'acc': val_acc}
+        test_epoch = {'epoch': epoch + 1, 'loss': test_loss, 'acc': test_acc}
+        
+        # Early stopping logic based on validation performance
         if compare_epochs(task_type, val_epoch, val_best_epoch):
             val_best_epoch = val_epoch
-            remaining_patience = patience
-            test_real_epoch = test_epoch
+            remaining_patience = patience  # Reset patience counter
         else:
             remaining_patience -= 1
+            
         if remaining_patience < 0:
             break
+            
+        # Track best test performance (for reporting, not early stopping)
         if compare_epochs(task_type, test_epoch, test_best_epoch):
             test_best_epoch = test_epoch
 
-
+    # Compile final training logs
     final_logs = {
         'train_epoch_time' : sum(train_times) / total_epochs,
         'val_epoch_time' : sum(val_times) / total_epochs,
@@ -248,6 +272,8 @@ def train(
         'test_best_epoch' : test_best_epoch['epoch'],
         'test_best_loss' : test_best_epoch['loss']
     }
+
+    # Add accuracy metrics for classification tasks
     if task_type != 'regression':
         final_logs.update({
             'val_best_acc' : val_best_epoch['acc'],

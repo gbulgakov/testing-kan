@@ -7,3 +7,18 @@ arch_types:
  
 optim_names:
   - adamw
+
+model_names:
+  - small_kan
+  - mlp
+
+dataset_names:
+  - adult
+  - california
+  - churn
+  - house
+  - diamond
+  
+  - higgs-small
+  - black-friday
+  - fb-comments

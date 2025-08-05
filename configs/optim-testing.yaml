@@ -9,9 +9,13 @@ model_names:
 emb_names:
   - PLE-Q
 
+optim_names:
+  - muon
+  - ademamix
+  - mars
+
 dataset_names:
   - adult
-  - gesture
   - california
   - churn
   - house

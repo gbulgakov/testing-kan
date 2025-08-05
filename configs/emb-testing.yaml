@@ -7,3 +7,23 @@ arch_types:
 
 optim_names:
   - adamw
+
+emb_names:
+  - none
+  - PLE-Q
+  - periodic
+
+model_names:
+  - mlp
+  - small_kan
+
+dataset_names:
+  - adult
+  - california
+  - churn
+  - house
+  - diamond
+  
+  - higgs-small
+  - black-friday
+  - fb-comments

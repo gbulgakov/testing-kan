@@ -8,16 +8,22 @@ arch_types:
 optim_names:
   - adamw
 
+emb_names:
+  - none
+
 model_names:
-  - small_kan
   - mlp
+  - small_kan
   - fast_kan
+  - cheby_kans
 
 dataset_names:
   - adult
+  - california
   - churn
+  - house
+  - diamond
+  
   - higgs-small
-  - santander
-  - classif-cat-large-0-road-safety
-  - classif-num-large-0-MiniBooNE
-
+  - black-friday
+  - fb-comments

@@ -270,10 +270,9 @@ class _NKANLinear(nn.Module):
         grid = grid.expand(n, in_features, -1).contiguous()
         self.register_buffer("grid", grid)
 
-        # Base transition params
+        # Base term
         self.base_weight = nn.Parameter(torch.Tensor(n, out_features, in_features))
-        
-        # Spline trainstion params
+        # Spline term
         self.spline_weight = nn.Parameter(
             torch.Tensor(n, out_features, in_features, grid_size + spline_order)
         )
@@ -321,7 +320,15 @@ class _NKANLinear(nn.Module):
             )
 
     def b_splines(self, x: torch.Tensor) -> torch.Tensor:
-        """B spline calculation"""
+        """
+        Compute the B-spline bases for the given input tensor.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, n, in_features).
+
+        Returns:
+            torch.Tensor: B-spline bases tensor of shape (batch_size, n, in_features, grid_size + spline_order).
+        """
         assert x.dim() == 3 and x.size(1) == self.n
         B, N, D = x.shape
         
@@ -345,11 +352,11 @@ class _NKANLinear(nn.Module):
             
             bases = left + right
         
-        return bases  # [B, N, D, grid_size + K]
+        return bases.contiguos  # [B, N, D, grid_size + K]
 
     @property
     def scaled_spline_weight(self) -> torch.Tensor:
-        """Spline weights init"""
+        """Spline weights with optional scaling."""
         if self.enable_standalone_scale_spline:
             return self.spline_weight * self.spline_scaler.unsqueeze(-1)
         return self.spline_weight
@@ -361,25 +368,26 @@ class _NKANLinear(nn.Module):
         original_shape = x.shape
         x = x.view(-1, self.n, self.in_features)  # [B, N, D]
         
-        # Base transition
-        base_out = torch.einsum(
+        # Base term
+        base_output = torch.einsum(
             'bnd,nod->bno',
             self.base_activation(x),
             self.base_weight
         )
         
-        # Spline transition
+        # Spline term
         spline_bases = self.b_splines(x)  # [B, N, D, grid+K]
         spline_flat = spline_bases.view(-1, self.n, self.in_features * (self.grid_size + self.spline_order))
-        
-        spline_out = torch.einsum(
+        spline_output = torch.einsum(
             'bnk,nok->bno',
             spline_flat,
             self.scaled_spline_weight.view(self.n, self.out_features, -1)
         )
         
-        # Summ and capture original shape
-        return (base_out + spline_out).view(*original_shape[:-1], self.out_features)
+        # Total output
+        output = base_output + spline_output
+        output = output.view(*original_shape[:-1], self.out_features)
+        return output
 
     
 class KAN(torch.nn.Module):

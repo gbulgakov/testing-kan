@@ -224,155 +224,20 @@ class LinearEfficientEnsemble(nn.Module):
         if self.bias is not None:
             x = x + self.bias
         return x
-    
-'''WARNING: Initialization is different from standard ChebyKAN implementation'''
-class ChebyKanEnsembleLayer(nn.Module):
-    def __init__(
-        self,
-        in_features: int,
-        out_features: int,
-        k: int, # number of ensembles   
-        degree: int, # degree of chebyshev polynomial
-        *,
-        ensemble_scaling_in: bool, # whether to scale the input by the number of ensembles  
-        ensemble_scaling_out: bool, # whether to scale the output by the number of ensembles
-        scaling_init: Literal['ones', 'random-signs'] = 'random-signs', # initialization for scaling
-    ):
-        assert k > 1
-        
-        super().__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.degree = degree
-        self.k = k
-        
-        self.cheby_coeffs = nn.Parameter(torch.empty(in_features, out_features, degree + 1)) # coefs for einsum later
-        self.register_buffer("arange", torch.arange(0, degree + 1, 1))
-        
-        self.register_parameter('r', nn.Parameter(torch.empty(k, in_features)) if ensemble_scaling_in else None) # input scaling
-        self.register_parameter('s', nn.Parameter(torch.empty(k, out_features)) if ensemble_scaling_out else None) # output scaling
-        
-        self.scaling_init = scaling_init
-        self.reset_parameters()
-        
-    def reset_parameters(self):
-        init_rsqrt_uniform_(self.cheby_coeffs, self.in_features * (self.degree + 1)) #TODO: check different init methods (xavier, random-signs, normal)
-        scaling_init_fn = {'ones': nn.init.ones_, 'random-signs': init_random_signs_}[
-            self.scaling_init
-        ]
-        if self.r is not None:
-            scaling_init_fn(self.r)
-        if self.s is not None:
-            scaling_init_fn(self.s)
-        
-    def forward(self, x: Tensor) -> Tensor:
-        #x.shape == (B, k, D)
-        assert x.ndim == 3
-        
-        if self.r is not None:
-            x = x * self.r
-            
-        #chebyshev part
-        x = torch.clamp(torch.tanh(x), -1 + 1e-6, 1 - 1e-6)  # безопасный tanh + clamp
-        # View and repeat input degree + 1 times
-        x = x.view((-1, self.inputdim, 1)).expand(
-            -1, -1, self.degree + 1
-        )  # shape = (batch_size, inputdim, self.degree + 1)
-        # Apply acos
-        x = x.acos()
-        # Multiply by arange [0 .. degree]
-        x *= self.arange
-        # Apply cos
-        x = x.cos()
-        # Compute the Chebyshev interpolation
-        y = torch.einsum(
-            "bkid,iod->bko", x, self.cheby_coeffs
-        )
-        if self.s is not None:
-            x = x * self.s
-        return x
-    
-class FastKanEnsembleLayer(nn.Module):
-    def __init__(self,
-        in_features: int,
-        out_features: int,
-        k: int, # number of ensembles   
-        #parameters for fastkan
-        grid_min: float = -2.,
-        grid_max: float = 2.,
-        num_grids: int = 8,
-        use_base_update: bool = True,
-        use_layernorm: bool = True,
-        base_activation = F.silu,
-        spline_weight_init_scale: float = 0.1,
-        *,
-        ensemble_scaling_in: bool, # whether to scale the input by the number of ensembles  
-        ensemble_scaling_out: bool, # whether to scale the output by the number of ensembles
-        scaling_init: Literal['ones', 'random-signs'] = 'random-signs'
-    ): # initialization for scaling:
-        assert k > 1
-        
-        super().__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.k = k
-        self.num_grids = num_grids
-        self.grid_max = grid_max
-        self.grid_min = grid_min
-        self.use_base_update = use_base_update
-        self.use_layernorm = use_layernorm
-        self.base_activation = base_activation
-        self.spline_weight_init_scale = spline_weight_init_scale
-        
-        self.register_parameter('r', nn.Parameter(torch.empty(k, in_features)) if ensemble_scaling_in else None) # input scaling
-        self.register_parameter('s', nn.Parameter(torch.empty(k, out_features)) if ensemble_scaling_out else None) # output scaling
-        
-        self.scaling_init = scaling_init
-        self.reset_parameters()
-    
-    def reset_parameters(self):
-        #from fastkan implementation
-        self.layernorm = None
-        if self.use_layernorm:
-            assert self.in_features > 1, "Do not use layernorms on 1D inputs. Set `use_layernorm=False`."
-            self.layernorm = nn.LayerNorm(self.in_features)
-        self.rbf = RadialBasisFunction(self.grid_min, self.grid_max, self.num_grids)
-        self.spline_linear = SplineLinear(self.in_features * self.num_grids, self.out_features, self.spline_weight_init_scale)
-        self.use_base_update = self.use_base_update
-        if self.use_base_update:
-            self.base_activation = self.base_activation
-            self.base_linear = nn.Linear(self.in_features, self.out_features)
-        #from TabM implementation
-        scaling_init_fn = {'ones': nn.init.ones_, 'random-signs': init_random_signs_}[
-            self.scaling_init
-        ]
-        if self.r is not None:
-            scaling_init_fn(self.r)
-        if self.s is not None:
-            scaling_init_fn(self.s)
-    
-    def forward(self, x: Tensor) -> Tensor:
-        #x.shape == (B, k, D)
-        assert x.ndim == 3
-        
-        if self.r is not None:
-            x = x * self.r
-            
-        #fastkan part
-        if self.layernorm is not None and self.use_layernorm:
-            spline_basis = self.rbf(self.layernorm(x))
-        else:
-            spline_basis = self.rbf(x)
-        ret = self.spline_linear(spline_basis.view(*spline_basis.shape[:-2], -1))
-        if self.use_base_update:
-            base = self.base_linear(self.base_activation(x))
-            ret = ret + base
-        x = ret
-        if self.s is not None:
-            x = x * self.s
-        return x
+
 
 class EfficientKanEnsembleLayer(nn.Module):
+    """
+    (Parameter-efficient) Ensemble version of `KANLinear`.
+
+    • Expects input of shape *(B, k, in_features)* where *k* is the
+      ensemble size.
+    • Computes base and B-spline terms **independently** for each
+      sub-model and returns a tensor of the same ensemble dimension.
+
+    Parameters are identical to `KANLinear` with one extra argument
+    `k` — the ensemble size.
+    """
     def __init__(self,
         in_features: int,
         out_features: int,
@@ -387,8 +252,8 @@ class EfficientKanEnsembleLayer(nn.Module):
         grid_eps=0.02,
         grid_range=[-1, 1],
         *,
-        ensemble_scaling_in: bool, # whether to scale the input by the number of ensembles  
-        ensemble_scaling_out: bool, # whether to scale the output by the number of ensembles
+        ensemble_scaling_in: bool,  
+        ensemble_scaling_out: bool,
         scaling_init: Literal['ones', 'random-signs'] = 'random-signs'
     ):
         assert k > 1
@@ -399,6 +264,7 @@ class EfficientKanEnsembleLayer(nn.Module):
         self.grid_size = grid_size
         self.spline_order = spline_order
 
+        # grid initialization
         h = (grid_range[1] - grid_range[0]) / grid_size
         grid = (
             (
@@ -409,10 +275,13 @@ class EfficientKanEnsembleLayer(nn.Module):
             .contiguous()
         )
         self.register_buffer("grid", grid)
+
+        # learnable parameteres
         self.base_weight = torch.nn.Parameter(torch.Tensor(out_features, in_features))
         self.spline_weight = torch.nn.Parameter(
             torch.Tensor(out_features, in_features, grid_size + spline_order)
         )
+
         if enable_standalone_scale_spline:
             self.spline_scaler = torch.nn.Parameter(
                 torch.Tensor(out_features, in_features)
@@ -491,7 +360,7 @@ class EfficientKanEnsembleLayer(nn.Module):
         grid = self.grid  # (in_features, grid_size + 2*spline_order + 1)
         x = x.unsqueeze(-1)
         
-        # Вычисление базисов (как в оригинале)
+        # B-spline computation
         bases = ((x >= grid[:, :-1]) & (x < grid[:, 1:])).to(x.dtype)
         for k in range(1, self.spline_order + 1):
             bases = (
